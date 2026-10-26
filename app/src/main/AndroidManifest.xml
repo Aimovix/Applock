@@ -48,14 +48,15 @@
             </intent-filter>
         </activity>
 
-        <!-- Sperr-Overlay-Activity (für Fälle, in denen Activity-Kontext für BiometricPrompt benötigt wird) -->
+        <!-- Sperr-Overlay-Activity: Task-isoliert mit singleTask und solidem Theme gegen Bildschirminhalt-Leaks -->
         <activity
             android:name=".ui.LockScreenActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/Theme.HonorAppLock.Transparent" />
+            android:launchMode="singleTask"
+            android:taskAffinity="com.applock.magic.lockscreen"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            android:theme="@style/Theme.HonorAppLock" />
 
         <!-- Zero-Latency Barrierefreiheitsdienst (Echtzeit-Erkennung von App-Wechseln) -->
         <service
@@ -88,6 +89,23 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Geräteadministrator (Deinstallationsschutz) -->
+        <receiver
+            android:name=".receiver.ShieldLockDeviceAdminReceiver"
+            android:description="@string/device_admin_desc"
+            android:label="@string/device_admin_label"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_policy" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
             </intent-filter>
         </receiver>
 

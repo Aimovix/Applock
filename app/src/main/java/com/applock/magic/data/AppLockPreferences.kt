@@ -10,21 +10,29 @@ class AppLockPreferences(context: Context) {
 
     companion object {
         private const val KEY_LOCKED_PACKAGES = "locked_packages"
-        private const val KEY_RELOCK_TIMEOUT = "relock_timeout_ms"
         private const val KEY_PROTECT_SETTINGS = "protect_system_settings"
+        private const val KEY_LOCK_POLICY = "lock_policy_type"
 
-        // Wichtige System-Pakete zum Schutz vor Deinstallation und Force-Stop
+        // Sperr-Richtlinien
+        const val POLICY_IMMEDIATE = 0      // Sofort bei App-Wechsel / Verlassen sperren
+        const val POLICY_SCREEN_OFF = 1     // Erst sperren, wenn das Display ausgeschaltet wird
+        const val POLICY_TIMEOUT_1MIN = 2   // 1 Minute Gnadenfrist nach Entsperrung
+        const val POLICY_TIMEOUT_5MIN = 3   // 5 Minuten Gnadenfrist nach Entsperrung
+
+        // Kritische System-Pakete zum Schutz vor Deinstallation, Datenlöschung und Force-Stop
         val SYSTEM_CRITICAL_PACKAGES = setOf(
             "com.android.settings",
             "com.google.android.packageinstaller",
             "com.android.packageinstaller",
             "com.hihonor.android.packageinstaller",
-            "com.android.vending"
+            "com.huawei.packageinstaller",
+            "com.android.vending",
+            "com.hihonor.systemmanager",
+            "com.huawei.systemmanager",
+            "com.hihonor.appmarket",
+            "com.huawei.appmarket"
         )
     }
-
-    // Temporäre Freigaben im RAM (Paketname -> Ablaufzeitpunkt in Millisekunden)
-    private val unlockedSessions = mutableMapOf<String, Long>()
 
     fun getLockedPackages(): Set<String> {
         val saved = prefs.getStringSet(KEY_LOCKED_PACKAGES, emptySet()) ?: emptySet()
@@ -46,17 +54,47 @@ class AppLockPreferences(context: Context) {
     }
 
     fun isPackageLocked(packageName: String): Boolean {
+        // Nicht in der Sperrliste
         if (!getLockedPackages().contains(packageName)) return false
-        val expiry = unlockedSessions[packageName] ?: 0L
-        return System.currentTimeMillis() > expiry
+
+        // Temporäre Freigabe aktiv?
+        return !LockStateManager.isTemporarilyUnlocked(packageName)
     }
 
-    fun unlockPackageTemporarily(packageName: String, durationMs: Long = 30_000L) {
-        unlockedSessions[packageName] = System.currentTimeMillis() + durationMs
+    fun unlockPackageTemporarily(packageName: String) {
+        val timeoutMs = when (getLockPolicy()) {
+            POLICY_IMMEDIATE -> 0L // Bleibt aktiv, solange die App im Vordergrund ist; wird beim Verlassen widerrufen
+            POLICY_SCREEN_OFF -> -1L // Bleibt aktiv bis Display-Aus
+            POLICY_TIMEOUT_1MIN -> 60_000L
+            POLICY_TIMEOUT_5MIN -> 300_000L
+            else -> 0L
+        }
+        LockStateManager.grantUnlock(packageName, timeoutMs)
+    }
+
+    fun handleAppSwitch(newPackage: String) {
+        val previous = LockStateManager.currentForegroundPackage
+        if (previous != null && previous != newPackage && !LockStateManager.isTransientPackage(newPackage)) {
+            // Wenn die Richtlinie "Sofort sperren" ist, verfällt die Freigabe der verlassenen App sofort
+            if (getLockPolicy() == POLICY_IMMEDIATE && getLockedPackages().contains(previous)) {
+                LockStateManager.revokeUnlock(previous)
+            }
+        }
+        if (!LockStateManager.isTransientPackage(newPackage)) {
+            LockStateManager.currentForegroundPackage = newPackage
+        }
     }
 
     fun lockAllImmediately() {
-        unlockedSessions.clear()
+        LockStateManager.lockAllImmediately()
+    }
+
+    fun getLockPolicy(): Int {
+        return prefs.getInt(KEY_LOCK_POLICY, POLICY_IMMEDIATE)
+    }
+
+    fun setLockPolicy(policy: Int) {
+        prefs.edit().putInt(KEY_LOCK_POLICY, policy).apply()
     }
 
     fun isProtectSettingsEnabled(): Boolean {

@@ -6,6 +6,7 @@
 -keep class com.applock.magic.data.** { *; }
 -keep class com.applock.magic.overlay.** { *; }
 -keep class com.applock.magic.ui.** { *; }
+-keep class com.applock.magic.receiver.** { *; }
 
 # Compose Keep Rules
 -keep class androidx.compose.material3.** { *; }

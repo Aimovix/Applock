@@ -15,8 +15,10 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.applock.magic.R
 import com.applock.magic.data.AppLockPreferences
+import com.applock.magic.data.LockStateManager
 import com.applock.magic.ui.LockScreenActivity
 import com.applock.magic.ui.MainActivity
+import com.applock.magic.util.PermissionHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,7 +56,7 @@ class AppLockForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY // Sichert automatisches Wiederauferstehen nach Low-Memory Kills
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -103,8 +105,9 @@ class AppLockForegroundService : Service() {
     }
 
     /**
-     * Fallback-Schleife mit UsageStatsManager für den Fall, dass
-     * der Barrierefreiheitsdienst durch Honor MagicOS Schlummerbetrieb verzögert wird.
+     * Fallback-Wächter via UsageStatsManager:
+     * Dient als Sicherheitsnetz für den Fall, dass der Barrierefreiheitsdienst
+     * durch aggressive Energiesparmodi temporär pausiert wurde.
      */
     private fun startFallbackMonitoring() {
         monitorJob?.cancel()
@@ -113,12 +116,25 @@ class AppLockForegroundService : Service() {
                 ?: return@launch
 
             while (isActive) {
-                delay(350) // Intervall für Fallback-Überwachung
+                // Wenn Accessibility aktiv ist, reicht ein selteneres Intervall (500ms)
+                val checkInterval = if (PermissionHelper.isAccessibilityServiceEnabled(this@AppLockForegroundService)) 600L else 300L
+                delay(checkInterval)
+
+                // Wenn bereits ein Sperrbildschirm angezeigt wird: Keine Konkurrenz erzeugen!
+                if (LockStateManager.isLockScreenShowing.get()) continue
+
                 val currentPkg = getForegroundPackage(usageStatsManager)
 
-                if (currentPkg != null && currentPkg != packageName && currentPkg != lastObservedPackage) {
+                if (currentPkg != null &&
+                    currentPkg != packageName &&
+                    !LockStateManager.isTransientPackage(currentPkg) &&
+                    currentPkg != lastObservedPackage
+                ) {
                     lastObservedPackage = currentPkg
-                    if (prefs.isPackageLocked(currentPkg)) {
+                    prefs.handleAppSwitch(currentPkg)
+
+                    if (prefs.isPackageLocked(currentPkg) && LockStateManager.authenticatingPackage != currentPkg) {
+                        LockStateManager.authenticatingPackage = currentPkg
                         launchLockScreen(currentPkg)
                     }
                 }
@@ -128,7 +144,7 @@ class AppLockForegroundService : Service() {
 
     private fun getForegroundPackage(usageStatsManager: UsageStatsManager): String? {
         val time = System.currentTimeMillis()
-        val events = usageStatsManager.queryEvents(time - 2000, time)
+        val events = usageStatsManager.queryEvents(time - 2500, time)
         val event = UsageEvents.Event()
         var lastForegroundApp: String? = null
 
@@ -147,6 +163,7 @@ class AppLockForegroundService : Service() {
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
                         Intent.FLAG_ACTIVITY_NO_ANIMATION
             )
         }

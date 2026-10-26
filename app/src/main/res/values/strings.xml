@@ -9,4 +9,7 @@
     <string name="biometric_title">App entsperren</string>
     <string name="biometric_subtitle">Nutze deinen Fingerabdruck oder 3D-Gesichtsscan</string>
     <string name="biometric_cancel">Abbrechen</string>
+
+    <string name="device_admin_label">ShieldLock Pro Deinstallationsschutz</string>
+    <string name="device_admin_desc">Verhindert die unbefugte Deinstallation oder das Erzwingen des Beendens der Schutz-App.</string>
 </resources>

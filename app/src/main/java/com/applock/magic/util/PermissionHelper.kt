@@ -1,7 +1,8 @@
 package com.applock.magic.util
 
-import android.accessibilityservice.AccessibilityService
 import android.app.AppOpsManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,6 +12,7 @@ import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.applock.magic.receiver.ShieldLockDeviceAdminReceiver
 import com.applock.magic.service.AppLockAccessibilityService
 
 object PermissionHelper {
@@ -92,6 +94,25 @@ object PermissionHelper {
             }
             context.startActivity(fallback)
         }
+    }
+
+    fun isDeviceAdminActive(context: Context): Boolean {
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val adminComponent = ComponentName(context, ShieldLockDeviceAdminReceiver::class.java)
+        return dpm.isAdminActive(adminComponent)
+    }
+
+    fun requestDeviceAdmin(context: Context) {
+        val adminComponent = ComponentName(context, ShieldLockDeviceAdminReceiver::class.java)
+        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+            putExtra(
+                DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                "Aktiviert den hardwaregestützten Deinstallationsschutz von ShieldLock Pro."
+            )
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 
     fun hasNotificationPermission(context: Context): Boolean {

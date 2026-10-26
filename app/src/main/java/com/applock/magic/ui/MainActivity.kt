@@ -1,12 +1,11 @@
 package com.applock.magic.ui
 
-import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +62,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
 
     private lateinit var prefs: AppLockPreferences
+    private val refreshTrigger = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,14 +70,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             HonorAppLockTheme {
-                MainScreen(prefs = prefs)
+                MainScreen(prefs = prefs, refreshTrigger = refreshTrigger.value)
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // Wenn Mindestberechtigungen da sind, Dienst sicherstellen
+        refreshTrigger.value += 1
         if (PermissionHelper.hasOverlayPermission(this) &&
             PermissionHelper.hasUsageStatsPermission(this)
         ) {
@@ -88,12 +87,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(prefs: AppLockPreferences) {
+fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
     val context = LocalContext.current
-    var hasOverlay by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(context)) }
-    var hasUsage by remember { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
-    var hasAccessibility by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
-    var isBatteryIgnored by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
+    var hasOverlay by remember(refreshTrigger) { mutableStateOf(PermissionHelper.hasOverlayPermission(context)) }
+    var hasUsage by remember(refreshTrigger) { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
+    var hasAccessibility by remember(refreshTrigger) { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
+    var isBatteryIgnored by remember(refreshTrigger) { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
+    var isDeviceAdmin by remember(refreshTrigger) { mutableStateOf(PermissionHelper.isDeviceAdminActive(context)) }
+
+    var lockPolicy by remember { mutableIntStateOf(prefs.getLockPolicy()) }
 
     var searchQuery by remember { mutableStateOf("") }
     var appList by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
@@ -101,7 +103,6 @@ fun MainScreen(prefs: AppLockPreferences) {
 
     val isHonor = remember { HonorMagicOsHelper.isHonorDevice() }
 
-    // Apps asynchron laden
     LaunchedEffect(Unit) {
         val lockedSet = prefs.getLockedPackages()
         val loaded = withContext(Dispatchers.IO) {
@@ -116,7 +117,7 @@ fun MainScreen(prefs: AppLockPreferences) {
                 InstalledApp(
                     name = appInfo.loadLabel(pm).toString(),
                     packageName = appInfo.packageName,
-                    icon = null, // Zur Performance-Optimierung
+                    icon = null,
                     isLocked = lockedSet.contains(appInfo.packageName),
                     isSystemCritical = AppLockPreferences.SYSTEM_CRITICAL_PACKAGES.contains(appInfo.packageName)
                 )
@@ -155,7 +156,7 @@ fun MainScreen(prefs: AppLockPreferences) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Berechtigungs-Übersicht
+            // Berechtigungs- & Schutzstatus
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SecuritySurface),
@@ -177,21 +178,91 @@ fun MainScreen(prefs: AppLockPreferences) {
                         )
 
                         PermissionRow(
-                            title = "Nutzungsdaten-Zugriff (Fallback)",
-                            granted = hasUsage,
-                            onGrant = { PermissionHelper.requestUsageStatsPermission(context) }
-                        )
-
-                        PermissionRow(
                             title = "Barrierefreiheit (0ms Echtzeit)",
                             granted = hasAccessibility,
                             onGrant = { PermissionHelper.requestAccessibilityPermission(context) }
                         )
 
                         PermissionRow(
+                            title = "Nutzungsdaten-Zugriff (Fallback)",
+                            granted = hasUsage,
+                            onGrant = { PermissionHelper.requestUsageStatsPermission(context) }
+                        )
+
+                        PermissionRow(
                             title = "Akku-Optimierung ignorieren",
                             granted = isBatteryIgnored,
                             onGrant = { PermissionHelper.requestIgnoreBatteryOptimizations(context) }
+                        )
+
+                        PermissionRow(
+                            title = "Deinstallationsschutz (Geräte-Admin)",
+                            granted = isDeviceAdmin,
+                            onGrant = { PermissionHelper.requestDeviceAdmin(context) }
+                        )
+                    }
+                }
+            }
+
+            // Sperr-Richtlinie (Wann soll gesperrt werden)
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SecuritySurface),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Sperrverhalten & Re-Lock-Richtlinie",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SecurityTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Definiert, wie schnell eine freigegebene App nach dem Wechseln wieder verriegelt wird.",
+                            fontSize = 13.sp,
+                            color = SecurityTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        PolicyOptionRow(
+                            title = "Sofort sperren (Höchste Sicherheit)",
+                            subtitle = "Verriegelt die App sofort beim Wechseln zu einer anderen App",
+                            selected = lockPolicy == AppLockPreferences.POLICY_IMMEDIATE,
+                            onClick = {
+                                lockPolicy = AppLockPreferences.POLICY_IMMEDIATE
+                                prefs.setLockPolicy(AppLockPreferences.POLICY_IMMEDIATE)
+                            }
+                        )
+
+                        PolicyOptionRow(
+                            title = "Bei Display-Aus sperren",
+                            subtitle = "Bleibt entsperrt, bis der Bildschirm ausgeschaltet wird",
+                            selected = lockPolicy == AppLockPreferences.POLICY_SCREEN_OFF,
+                            onClick = {
+                                lockPolicy = AppLockPreferences.POLICY_SCREEN_OFF
+                                prefs.setLockPolicy(AppLockPreferences.POLICY_SCREEN_OFF)
+                            }
+                        )
+
+                        PolicyOptionRow(
+                            title = "1 Minute Gnadenfrist",
+                            subtitle = "Erlaubt schnelles Multitasking für 60 Sekunden",
+                            selected = lockPolicy == AppLockPreferences.POLICY_TIMEOUT_1MIN,
+                            onClick = {
+                                lockPolicy = AppLockPreferences.POLICY_TIMEOUT_1MIN
+                                prefs.setLockPolicy(AppLockPreferences.POLICY_TIMEOUT_1MIN)
+                            }
+                        )
+
+                        PolicyOptionRow(
+                            title = "5 Minuten Gnadenfrist",
+                            subtitle = "Verriegelt erst nach 5 Minuten Inaktivität",
+                            selected = lockPolicy == AppLockPreferences.POLICY_TIMEOUT_5MIN,
+                            onClick = {
+                                lockPolicy = AppLockPreferences.POLICY_TIMEOUT_5MIN
+                                prefs.setLockPolicy(AppLockPreferences.POLICY_TIMEOUT_5MIN)
+                            }
                         )
                     }
                 }
@@ -285,6 +356,53 @@ fun MainScreen(prefs: AppLockPreferences) {
             item {
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+@Composable
+fun PolicyOptionRow(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) SecuritySuccess else SecurityTextPrimary
+            )
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = SecurityTextSecondary
+            )
+        }
+        Box(
+            modifier = Modifier
+                .padding(start = 12.dp)
+                .background(
+                    color = if (selected) SecurityAccent else Color.Transparent,
+                    shape = RoundedCornerShape(4.dp)
+                )
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = if (selected) "Aktiv" else "Wählen",
+                fontSize = 11.sp,
+                color = if (selected) Color.White else SecurityTextSecondary,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
