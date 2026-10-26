@@ -54,6 +54,7 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
+            android:resizeableActivity="false"
             android:taskAffinity="com.applock.magic.lockscreen"
             android:windowSoftInputMode="stateAlwaysHidden"
             android:theme="@style/Theme.HonorAppLock" />

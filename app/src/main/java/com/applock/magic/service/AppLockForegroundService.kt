@@ -116,9 +116,16 @@ class AppLockForegroundService : Service() {
                 ?: return@launch
 
             while (isActive) {
-                // Wenn Accessibility aktiv ist, reicht ein selteneres Intervall (500ms)
-                val checkInterval = if (PermissionHelper.isAccessibilityServiceEnabled(this@AppLockForegroundService)) 600L else 300L
-                delay(checkInterval)
+                // Wenn der Barrierefreiheitsdienst aktiv ist, übernimmt er die 0ms-Echtzeiterkennung.
+                // Der ForegroundService pausiert in dieser Zeit das CPU-lastige UsageStats-Polling,
+                // um Race Conditions und unnötigen Akkuverbrauch vollständig zu verhindern.
+                if (PermissionHelper.isAccessibilityServiceEnabled(this@AppLockForegroundService)) {
+                    delay(2000L)
+                    continue
+                }
+
+                // Nur wenn der AccessibilityService inaktiv/gekillt ist, springt der Fallback-Timer ein:
+                delay(350L)
 
                 // Wenn bereits ein Sperrbildschirm angezeigt wird: Keine Konkurrenz erzeugen!
                 if (LockStateManager.isLockScreenShowing.get()) continue

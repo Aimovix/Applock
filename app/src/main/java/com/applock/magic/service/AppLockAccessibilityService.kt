@@ -54,9 +54,17 @@ class AppLockAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 4. DEADLOCK- & SCHLEIFEN-VERHINDERUNG:
-        // Wenn der Sperrbildschirm bereits sichtbar ist, KEINE neue Instanz starten!
-        if (LockStateManager.isLockScreenShowing.get()) return
+        // 4. Wenn der Sperrbildschirm bereits sichtbar ist:
+        if (LockStateManager.isLockScreenShowing.get()) {
+            // Wenn es dieselbe App ist, für die der Dialog bereits läuft: nichts tun
+            if (LockStateManager.authenticatingPackage == packageName) return
+
+            // Wenn zu einer ANDEREN gesperrten App gewechselt wurde:
+            // Intent an aktive LockScreenActivity weiterleiten (via onNewIntent)
+            LockStateManager.authenticatingPackage = packageName
+            triggerLock(packageName)
+            return
+        }
 
         // 5. Wenn bereits eine Authentifizierung für dieses Paket läuft, nicht erneut triggern
         if (LockStateManager.authenticatingPackage == packageName) return
@@ -68,8 +76,8 @@ class AppLockAccessibilityService : AccessibilityService() {
         // 7. Prüfen, ob die gewechselte Ziel-App gesperrt ist
         if (prefs.isPackageLocked(packageName)) {
             val now = SystemClock.elapsedRealtime()
-            // Debounce: Verhindert Mehrfachstarts bei schnellen Window-State-Schwankungen (unter 200ms)
-            if (now - lastTriggerTime > 200L) {
+            // Debounce: Verhindert Mehrfachstarts bei schnellen Window-State-Schwankungen (unter 150ms)
+            if (now - lastTriggerTime > 150L) {
                 lastTriggerTime = now
                 LockStateManager.authenticatingPackage = packageName
                 triggerLock(packageName)

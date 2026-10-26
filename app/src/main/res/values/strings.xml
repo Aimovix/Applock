@@ -12,4 +12,9 @@
 
     <string name="device_admin_label">ShieldLock Pro Deinstallationsschutz</string>
     <string name="device_admin_desc">Verhindert die unbefugte Deinstallation oder das Erzwingen des Beendens der Schutz-App.</string>
+
+    <string name="lock_screen_title">App geschützt</string>
+    <string name="lock_screen_subtitle">Entsperren mit Fingerabdruck, 3D-Gesicht oder PIN</string>
+    <string name="lock_screen_unlock_btn">Jetzt entsperren</string>
+    <string name="lock_screen_home_btn">Zurück zum Startbildschirm</string>
 </resources>

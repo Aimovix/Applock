@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.FragmentActivity
@@ -24,10 +25,16 @@ class LockScreenActivity : FragmentActivity() {
     private var targetPackage: String? = null
     private var isAuthenticating = false
 
+    private lateinit var imgTargetAppIcon: ImageView
+    private lateinit var tvTargetAppName: TextView
+    private lateinit var tvLockSubtitle: TextView
+    private lateinit var btnUnlock: Button
+    private lateinit var btnHome: Button
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Screenshot- und Recent-Task-Schutz aktivieren
+        // 1. Screenshot- und Recent-Task-Schutz aktivieren (Schutz vor Inhalts-Leaks)
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
@@ -45,6 +52,7 @@ class LockScreenActivity : FragmentActivity() {
         LockStateManager.authenticatingPackage = targetPackage
 
         initViews()
+        updateTargetAppInfo(targetPackage)
 
         // 4. Zurück-Taste: Immer sicher zum Launcher zurückkehren
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -64,6 +72,7 @@ class LockScreenActivity : FragmentActivity() {
         if (newTarget != null && newTarget != targetPackage) {
             targetPackage = newTarget
             LockStateManager.authenticatingPackage = newTarget
+            updateTargetAppInfo(newTarget)
             if (!isAuthenticating) {
                 startBiometricAuthentication()
             }
@@ -71,8 +80,11 @@ class LockScreenActivity : FragmentActivity() {
     }
 
     private fun initViews() {
-        val btnUnlock = findViewById<Button>(R.id.btn_unlock_biometric)
-        val btnHome = findViewById<Button>(R.id.btn_go_home)
+        imgTargetAppIcon = findViewById(R.id.img_target_app_icon)
+        tvTargetAppName = findViewById(R.id.tv_target_app_name)
+        tvLockSubtitle = findViewById(R.id.tv_lock_subtitle)
+        btnUnlock = findViewById(R.id.btn_unlock_biometric)
+        btnHome = findViewById(R.id.btn_go_home)
 
         btnUnlock.setOnClickListener {
             if (!isAuthenticating) {
@@ -85,13 +97,47 @@ class LockScreenActivity : FragmentActivity() {
         }
     }
 
+    private fun updateTargetAppInfo(packageName: String?) {
+        if (packageName.isNullOrBlank()) {
+            tvTargetAppName.text = getString(R.string.lock_screen_title)
+            imgTargetAppIcon.setImageResource(android.R.drawable.ic_lock_lock)
+            tvLockSubtitle.text = getString(R.string.lock_screen_subtitle)
+            return
+        }
+
+        try {
+            val pm = packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            val appLabel = pm.getApplicationLabel(appInfo).toString()
+            val appIcon = pm.getApplicationIcon(appInfo)
+
+            tvTargetAppName.text = appLabel
+            imgTargetAppIcon.setImageDrawable(appIcon)
+            tvLockSubtitle.text = "$appLabel ist durch ShieldLock Pro geschützt"
+        } catch (_: Exception) {
+            tvTargetAppName.text = getString(R.string.lock_screen_title)
+            imgTargetAppIcon.setImageResource(android.R.drawable.ic_lock_lock)
+            tvLockSubtitle.text = getString(R.string.lock_screen_subtitle)
+        }
+    }
+
     private fun startBiometricAuthentication() {
         if (isAuthenticating) return
         isAuthenticating = true
 
-        biometricAuthManager.authenticateWithCrypto(
-            title = "App geschützt",
-            subtitle = "Entsperren mit Fingerabdruck oder 3D-Gesicht",
+        val appLabel = targetPackage?.let { pkg ->
+            try {
+                val pm = packageManager
+                val info = pm.getApplicationInfo(pkg, 0)
+                pm.getApplicationLabel(info).toString()
+            } catch (_: Exception) {
+                null
+            }
+        } ?: getString(R.string.lock_screen_title)
+
+        biometricAuthManager.authenticate(
+            title = "$appLabel entsperren",
+            subtitle = "Mit Fingerabdruck, 3D-Gesicht oder PIN bestätigen",
             onSuccess = {
                 isAuthenticating = false
                 targetPackage?.let { pkg ->
@@ -135,6 +181,13 @@ class LockScreenActivity : FragmentActivity() {
         } else {
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            LockStateManager.isLockScreenShowing.set(false)
         }
     }
 

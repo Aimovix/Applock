@@ -6,22 +6,24 @@
 
 ## 📦 Download der APKs
 
-Im Stammverzeichnis dieses Repositories befinden sich die fertig vorkompilierten und signierten APKs:
+Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vorkompilierten APKs:
 
 | Datei | Build-Typ | Dateigröße | Beschreibung & Empfehlung |
 | :--- | :--- | :--- | :--- |
 | **[ShieldLockPro-release.apk](ShieldLockPro-release.apk)** | **Release** | **~2,9 MB** | **Empfohlen (Flüssigste Version):** Vollständige R8-Minification, Resource-Shrinking und vorkompilierte ART-Profile. Reagiert mit 0 ms Latenz ohne Ruckler beim App-Wechsel. |
-| **[ShieldLockPro-debug.apk](ShieldLockPro-debug.apk)** | **Debug** | ~11,8 MB | Enthält unkomprimierte Symbole, Compose-Recomposition-Tracking und ausführliche Logs für Entwickler. |
+| **[ShieldLockPro-debug.apk](ShieldLockPro-debug.apk)** | **Debug** | **~11,8 MB** | Enthält unkomprimierte Symbole, Compose-Recomposition-Tracking und ausführliche Logs für Entwickler. |
 
 ---
 
 ## 🚀 Wichtigste Features auf einen Blick
 
 - ⚡ **0ms-Echtzeitwächter:** Fenstererkennung über System-Level-Accessibility-Events statt batteriefressendem Polling.
-- 🧬 **Passkey- & Hardware-Biometrie:** AES-256-GCM-Schlüsselbindung im Android Keystore (`AUTH_BIOMETRIC_STRONG`) für Ultraschall-Fingerabdruck und 3D-ToF-Gesichtserkennung.
+- 🧬 **Passkey- & Hardware-Biometrie:** Volle Unterstützung für Ultraschall-Fingerabdruck, 3D-ToF-Gesichtserkennung und nahtlosem PIN-/Muster-Fallback bei Lockout.
 - 👁️ **Instant 3D-Gesichtsscan:** Nutzung von `setConfirmationRequired(false)` – auf dem Honor Magic 8 Pro entsperrt die App sofort bei Blickkontakt ohne zweiten Display-Klick.
+- 🎨 **Dynamische Ziel-App-Erkennung:** Der Sperrbildschirm lädt zur Laufzeit das echte Icon und den Namen der blockierten App (z. B. WhatsApp) inklusive maßgeschneiderter Aufforderung.
 - 🛡️ **Deinstallationsschutz (Geräte-Admin):** Sperrt die Android-Systemfunktion zum Deinstallieren der App.
 - 🔒 **Opaque Maske mit `FLAG_SECURE`:** Kein Durchblitzen von Bildschirminhalten, keine Screenshots und geschwärzte Vorschau im Task-Manager.
+- 🔲 **Split-Screen & Multi-Window-Schutz:** `android:resizeableActivity="false"` erzwingt die vollflächige Abdeckung des Displays.
 - 🔄 **Intelligente Re-Lock-Richtlinien:** Wählbar zwischen *Bei Display-Aus*, *Sofort nach Verlassen*, *1 Minute* oder *5 Minuten*.
 - 🛡️ **Anti-Tamper & Anti-Force-Stop:** Schutz für Systemeinstellungen, Google Play Store und Honor SystemManager.
 
@@ -31,21 +33,29 @@ Im Stammverzeichnis dieses Repositories befinden sich die fertig vorkompilierten
 
 ### 1. Das „Endlos-Fingerabdruck“-Problem (Infinite Loop)
 * **Problem:** Nach erfolgreichem Scan des Fingerabdrucks schloss sich die Sperre, öffnete sich aber im selben Bruchteil einer Sekunde erneut in einer Endlosschleife.
-* **Ursache:** 
-  1. Die Freigaben (`unlockedSessions`) wurden in separaten Instanzen von `AppLockPreferences` gehalten. Die `LockScreenActivity` speicherte die Freigabe in ihrer eigenen Instanz, während der `AppLockAccessibilityService` eine andere Instanz prüfte, in der die App weiterhin als „gesperrt“ galt.
-  2. Zudem führten Zwischen-Events des Launchers oder der Taskleiste beim Schließen der Activity dazu, dass die Freigabe sofort wieder zurückgesetzt wurde.
+* **Ursachen:** 
+  1. *Instanz-Trennung:* `unlockedSessions` wurde in vorherigen Versionen als lokale Instanzvariable in `AppLockPreferences` gehalten. Die `LockScreenActivity` schaltete die App nur in ihrer eigenen Instanz frei. Beim Schließen las der `AppLockAccessibilityService` seine eigene Instanz, in der die App weiterhin als gesperrt markiert war, und rief den Dialog erneut auf.
+  2. *Re-Lock Race:* Beim Beenden der `LockScreenActivity` feuerte Android ein `WINDOW_STATE_CHANGED`-Event für die wiederkehrende Ziel-App, was ohne Puffer sofort als erneuter Startversuch interpretiert wurde.
 * **Lösung:**
-  1. **Singleton `LockStateManager`:** Einführung eines globalen, prozessweiten State-Managers mit atomarer `ConcurrentHashMap`.
+  1. **Zentraler Singleton `LockStateManager`:** Globaler, prozessweiter State-Manager mit atomarer `ConcurrentHashMap`. Alle Komponenten teilen sich exakt denselben Sperrzustand.
   2. **8-Sekunden Anti-Flapping-Puffer:** `lastUnlockTimestamp` garantiert, dass eine soeben entsperrte App für mindestens 8 Sekunden nicht durch Fensterwechsel-Races erneut gesperrt werden kann.
   3. **Sofort-Abbruch:** Erkennt der Barrierefreiheitsdienst, dass `!prefs.isPackageLocked(packageName)` zutrifft, bricht er die Ausführung sofort mit `return` ab, ohne einen neuen Task zu starten.
 
 ### 2. Das „Stuck zwischen Apps“-Problem (Deadlock beim Multitasking)
-* **Problem:** Beim schnellen Wechseln zwischen mehreren Apps oder bei Wischgesten über die Gestenleiste fror der Bildschirm ein oder flackerte.
-* **Ursache:** Die gleichzeitige Ausführung von `AppLockAccessibilityService` und `AppLockForegroundService` führte zu konkurrierenden `startActivity()`-Aufrufen. Bei aktivem Biometrie-Prompt löste die Android SystemUI neue Accessibility-Events aus, die den laufenden Prompt abbrachen.
+* **Problem:** Beim schnellen Wechseln zwischen Apps oder bei Wischgesten über die Gestenleiste fror das Gerät ein oder der Sperrbildschirm reagierte nicht mehr.
+* **Ursachen:**
+  1. *Konkurrierendes Polling:* `AppLockForegroundService` führte alle 300 ms ein asynchrones `UsageStatsManager`-Polling durch, während der `AppLockAccessibilityService` gleichzeitig 0ms-Events verarbeitete. Das 1–2 Sekunden verzögerte UsageStats-Signal überschrieb den aktuellen Zustand des Barrierefreiheitsdienstes.
+  2. *Verlorene Ziel-Events:* Wenn die `LockScreenActivity` bereits für App A sichtbar war und der Nutzer per Geste zu App B wechselte, blockierte ein statischer Guard (`if (isLockScreenShowing) return`) das Event für App B vollständig.
 * **Lösung:**
-  1. **Atomic Guard:** `LockStateManager.isLockScreenShowing` verhindert jeden weiteren Start, solange eine Sperrmaske sichtbar ist.
-  2. **Transienz-Filter:** SystemUI, Statusleiste und Tastaturen (Gboard, SwiftKey, Honor Celia Keyboard) werden ignoriert und verändern den aktiven App-Fokus nicht.
-  3. **Debounce-Filter (200 ms):** Schützt vor Flatter-Events bei schnellen Multitasking-Gesten.
+  1. **Dual-Service Non-Compete Architektur:** Sobald der `AppLockAccessibilityService` aktiv ist, pausiert der `AppLockForegroundService` jegliches `UsageStats`-Polling vollständig und fungiert rein als passiver, unkillbarer Sticky-Wächter. Erst wenn das System den Barrierefreiheitsdienst killen sollte, reaktiviert sich das Polling als automatischer Fallback.
+  2. **Dynamische Intent-Weiterleitung (`onNewIntent`):** Wechselt der Nutzer bei sichtbarem Sperrbildschirm zu einer anderen gesperrten App, leitet der Accessibility-Dienst den Event-Intent per `FLAG_ACTIVITY_SINGLE_TOP` an die aktive `LockScreenActivity` weiter. Diese aktualisiert sofort App-Icon, Name und Prompt auf die neue Ziel-App, ohne hängen zu bleiben.
+  3. **Debounce-Filter (150 ms):** Verhindert Flatter-Starts bei schnellen Gestenwechseln.
+
+### 3. Aussperrungs-Schutz (Biometric Lockout Fallback)
+* **Problem:** Bei verschmutztem Fingerabdruck-Sensor oder nach mehreren Fehlversuchen sperrt Android die Biometrie für 30 Sekunden (`ERROR_LOCKOUT`), wodurch der Nutzer keinen Zugriff mehr auf seine Apps hatte.
+* **Lösung:**
+  1. Unterstützung von `BIOMETRIC_STRONG or DEVICE_CREDENTIAL` in [`BiometricAuthManager`](app/src/main/java/com/applock/magic/security/BiometricAuthManager.kt).
+  2. Kann der Fingerabdruck nicht gelesen werden oder ist gesperrt, bietet das System automatisch die Eingabe der Geräte-PIN oder des Musters an.
 
 ---
 
@@ -54,8 +64,9 @@ Im Stammverzeichnis dieses Repositories befinden sich die fertig vorkompilierten
 | Angriffsvektor | Typische Umgehung | Implementierter Schutz in ShieldLock Pro |
 | :--- | :--- | :--- |
 | **App-Deinstallation** | App-Icon auf den Papierkorb / „Deinstallieren“ ziehen | **Geräte-Administrator (`ShieldLockDeviceAdminReceiver`):** Die Android-Systemfunktion zur Deinstallation wird komplett gesperrt. |
-| **Erzwungenes Beenden (Force Stop)** | In den Android-App-Infos auf „Stoppen erzwingen“ tippen | **System-Sperre:** `com.android.settings`, Paket-Installer und System-Manager sind standardmäßig in der Sperrliste verankert. |
+| **Erzwungenes Beenden (Force Stop)** | In den Android-App-Infos auf „Stoppen erzwingen“ tippen | **System-Sperre:** `com.android.settings`, Paket-Installer und Honor SystemManager sind standardmäßig in der Sperrliste verankert. |
 | **Speicherdaten löschen** | Löschen von Cache und App-Daten in den Einstellungen | Durch die Sperrung der Android-Einstellungen und Installer unzugänglich. |
+| **Split-Screen / Multi-Window** | Geschützte App in geteiltem Bildschirm neben einer freien App öffnen | **`android:resizeableActivity="false"`:** Erzwingt die vollflächige Abdeckung des Displays und verhindert Split-Screen-Bypasses. |
 | **Systemuhr manipulieren** | Datum/Uhrzeit zurückstellen, um Zeitfenster zu umgehen | **Monotone Zeitrechnung:** Verwendung von `SystemClock.elapsedRealtime()`. Änderungen der Systemuhrzeit sind wirkungslos. |
 | **Task-Manager Snooping** | Sensible Inhalte in den Recent-Apps-Karten einsehen | **`FLAG_SECURE`:** Verhindert Screenshots, Videoaufnahmen und schwärzt die Vorschau im Task-Manager. |
 | **Frame-Leck beim Start** | Kurzes Aufblitzen von Chats vor Erscheinen der Sperre | **Feste Opaque-Maske:** [`LockScreenActivity`](app/src/main/java/com/applock/magic/ui/LockScreenActivity.kt) blockiert sofort den Render-Buffer und alle Touch-Events. |
