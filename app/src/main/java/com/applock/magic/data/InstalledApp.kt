@@ -7,5 +7,6 @@ data class InstalledApp(
     val packageName: String,
     val icon: Drawable?,
     val isLocked: Boolean,
-    val isSystemCritical: Boolean = false
+    val isSystemCritical: Boolean = false,
+    val isHidden: Boolean = false
 )

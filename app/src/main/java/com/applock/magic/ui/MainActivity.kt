@@ -75,6 +75,8 @@ import com.applock.magic.ui.theme.SecuritySurfaceVariant
 import com.applock.magic.ui.theme.SecurityTextPrimary
 import com.applock.magic.ui.theme.SecurityTextSecondary
 import com.applock.magic.ui.theme.SecurityWarning
+import com.applock.magic.util.AppHiderManager
+import com.applock.magic.util.HiderEngineMode
 import com.applock.magic.util.HonorMagicOsHelper
 import com.applock.magic.util.IconCustomizerManager
 import com.applock.magic.util.PermissionHelper
@@ -135,8 +137,10 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
     var isStealthMode by remember(refreshTrigger) { mutableStateOf(StealthModeManager.isStealthModeActive(context)) }
     var isHideAppDetails by remember { mutableStateOf(prefs.isHideAppDetailsOnLock()) }
     var showStealthConfirmDialog by remember { mutableStateOf(false) }
+    var showHiderHelpDialog by remember { mutableStateOf(false) }
+    val engineMode = remember(refreshTrigger) { AppHiderManager.getEngineMode(context) }
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = AppLock, 1 = Icon Changer / Tarnung
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = AppLock, 1 = Verstecken, 2 = Icon Changer
     var searchQuery by remember { mutableStateOf("") }
     var appList by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -148,12 +152,14 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
 
     LaunchedEffect(customizationVersion) {
         val lockedSet = prefs.getLockedPackages()
+        val hiddenSet = prefs.getHiddenPackages()
         val loaded = withContext(Dispatchers.IO) {
             val pm = context.packageManager
             val installed = pm.getInstalledApplications(PackageManager.GET_META_DATA)
             val launchable = installed.filter {
                 (pm.getLaunchIntentForPackage(it.packageName) != null) ||
-                        AppLockPreferences.SYSTEM_CRITICAL_PACKAGES.contains(it.packageName)
+                        AppLockPreferences.SYSTEM_CRITICAL_PACKAGES.contains(it.packageName) ||
+                        hiddenSet.contains(it.packageName)
             }
 
             launchable.map { appInfo ->
@@ -162,10 +168,12 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                     packageName = appInfo.packageName,
                     icon = null,
                     isLocked = lockedSet.contains(appInfo.packageName),
-                    isSystemCritical = AppLockPreferences.SYSTEM_CRITICAL_PACKAGES.contains(appInfo.packageName)
+                    isSystemCritical = AppLockPreferences.SYSTEM_CRITICAL_PACKAGES.contains(appInfo.packageName),
+                    isHidden = hiddenSet.contains(appInfo.packageName)
                 )
             }.sortedWith(
-                compareByDescending<InstalledApp> { it.isLocked }
+                compareByDescending<InstalledApp> { it.isHidden }
+                    .thenByDescending { it.isLocked }
                     .thenBy { it.name.lowercase() }
             )
         }
@@ -243,6 +251,15 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
         )
     }
 
+    if (showHiderHelpDialog) {
+        HiderHelpDialog(
+            onDismiss = { showHiderHelpDialog = false },
+            onCopyCommand = {
+                AppHiderManager.copyAdbCommandToClipboard(context)
+            }
+        )
+    }
+
     Scaffold(
         containerColor = SecurityDarkBackground
     ) { innerPadding ->
@@ -268,7 +285,7 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Hauptnavigation: AppLock vs. Icon Changer
+                // Hauptnavigation: Sperren, Verstecken, Tarnen
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = SecuritySurface,
@@ -283,12 +300,17 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("🔒 AppLock", fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                        text = { Text("🔒 Sperren", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("🎭 Icon Changer", fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+                        text = { Text("👻 Verstecken", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                    )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = { Text("🎭 Tarnen", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
                     )
                 }
             }
@@ -651,8 +673,174 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                     }
                 }
 
+            } else if (selectedTab == 1) {
+                // ================= TAB 1: APPS VERSTECKEN =================
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = SecuritySurface),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Andere Apps komplett verstecken",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SecurityTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Entfernt geschützte Apps vollständig vom Startbildschirm und aus dem App-Drawer. Die App ist nicht mehr auf dem Display zu sehen, bleibt aber installiert und kann nur noch in den Android-Einstellungen (Apps) und im Dateimanager gefunden werden.",
+                                fontSize = 13.sp,
+                                color = SecurityTextSecondary,
+                                lineHeight = 18.sp
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Status Badge
+                            when (engineMode) {
+                                HiderEngineMode.DEVICE_OWNER -> {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = SecuritySuccess.copy(alpha = 0.15f)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("✅", fontSize = 16.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Device-Owner Modus aktiv: Apps können sofort per Klick ausgeblendet werden.",
+                                                fontSize = 12.sp,
+                                                color = SecuritySuccess,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                                HiderEngineMode.SHIZUKU_OR_ROOT -> {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = SecuritySuccess.copy(alpha = 0.15f)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("✅", fontSize = 16.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Root / Shell Modus aktiv: Ausblenden über pm disable-user möglich.",
+                                                fontSize = 12.sp,
+                                                color = SecuritySuccess,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                                HiderEngineMode.NOT_AVAILABLE -> {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = SecurityWarning.copy(alpha = 0.12f)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(
+                                                text = "⚠️ Berechtigung zum Ausblenden erforderlich",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = SecurityWarning
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Android verbietet Apps standardmäßig, fremde Apps zu verstecken. Aktiviere einmalig Device-Owner per ADB oder nutze Shizuku:",
+                                                fontSize = 12.sp,
+                                                color = SecurityTextSecondary,
+                                                lineHeight = 16.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Button(
+                                                    onClick = {
+                                                        AppHiderManager.copyAdbCommandToClipboard(context)
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = SecurityAccent),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text("ADB-Befehl kopieren", fontSize = 11.sp)
+                                                }
+                                                Button(
+                                                    onClick = { showHiderHelpDialog = true },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = SecuritySurfaceVariant),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text("Anleitung", fontSize = 11.sp, color = SecurityTextPrimary)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Suchfeld für Verstecken
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("App zum Verstecken suchen...", color = SecurityTextSecondary) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+
+                if (isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = SecurityAccent)
+                        }
+                    }
+                } else {
+                    val filtered = appList.filter {
+                        it.name.contains(searchQuery, ignoreCase = true) ||
+                                it.packageName.contains(searchQuery, ignoreCase = true)
+                    }
+
+                    items(filtered, key = { "hide_" + it.packageName }) { app ->
+                        HideAppRow(
+                            app = app,
+                            onHideToggled = { hide ->
+                                val res = AppHiderManager.setAppHidden(context, prefs, app.packageName, hide)
+                                res.onSuccess {
+                                    appList = appList.map {
+                                        if (it.packageName == app.packageName) it.copy(isHidden = hide) else it
+                                    }
+                                    Toast.makeText(
+                                        context,
+                                        if (hide) "${app.name} komplett ausgeblendet!" else "${app.name} wieder sichtbar!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }.onFailure { ex ->
+                                    if (engineMode == HiderEngineMode.NOT_AVAILABLE) {
+                                        showHiderHelpDialog = true
+                                    } else {
+                                        Toast.makeText(context, "Fehler: ${ex.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
             } else {
-                // ================= TAB 1: ICON CHANGER & TARNUNG =================
+                // ================= TAB 2: ICON CHANGER & TARNUNG =================
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = SecuritySurface),
@@ -1147,4 +1335,178 @@ private fun getDefaultAppBitmap(context: Context, packageName: String, fallback:
     } catch (_: Exception) {
         fallback
     }
+}
+
+@Composable
+fun HideAppRow(
+    app: InstalledApp,
+    onHideToggled: (Boolean) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SecuritySurface),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = app.name,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SecurityTextPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    if (app.isHidden) {
+                        Text(
+                            text = "👻 Ausgeblendet",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SecurityAccent,
+                            modifier = Modifier
+                                .background(SecurityAccent.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (app.isHidden) "Vom Startbildschirm entfernt (nur in Einstellungen / Dateien)" else app.packageName,
+                    fontSize = 12.sp,
+                    color = if (app.isHidden) SecurityWarning else SecurityTextSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Switch(
+                checked = app.isHidden,
+                onCheckedChange = onHideToggled,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = SecurityAccent,
+                    uncheckedThumbColor = Color.Gray,
+                    uncheckedTrackColor = SecuritySurfaceVariant
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun HiderHelpDialog(onDismiss: () -> Unit, onCopyCommand: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Andere Apps verstecken – Freischaltung",
+                color = SecurityTextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+        },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    text = "Android schützt Apps davor, von anderen Apps ohne Freigabe gelöscht oder versteckt zu werden.\n\n" +
+                            "Um beliebige Apps spurlos aus dem Startbildschirm/Launcher zu entfernen, stehen dir folgende Optionen zur Verfügung:",
+                    color = SecurityTextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SecuritySurfaceVariant),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "1. Device-Owner (Empfohlen / Einmalig per PC)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = SecurityAccent
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "USB-Debugging auf dem Honor Magic 8 Pro aktivieren und im Terminal ausführen:\n\n" +
+                                    AppHiderManager.ADB_DEVICE_OWNER_COMMAND,
+                            fontSize = 11.sp,
+                            color = SecurityTextPrimary,
+                            lineHeight = 15.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onCopyCommand,
+                            colors = ButtonDefaults.buttonColors(containerColor = SecurityAccent),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("ADB-Befehl kopieren", fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SecuritySurfaceVariant),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "2. Ohne PC per Shizuku / WLAN-Debugging",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = SecurityAccent
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Installiere 'Shizuku' und starte es über Kabelloses Debugging direkt auf deinem Handy. ShieldLock Pro kann dann pm disable-user ausführen.",
+                            fontSize = 12.sp,
+                            color = SecurityTextSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SecuritySurfaceVariant),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "3. Sofort ohne Rechte: Tab 'Tarnen'",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = SecurityAccent
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Gib der sensiblen App im Tab 'Tarnen' einfach ein Fake-Icon (z.B. Rechner oder Notizen).",
+                            fontSize = 12.sp,
+                            color = SecurityTextSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = SecurityAccent)
+            ) {
+                Text("Verstanden")
+            }
+        },
+        containerColor = SecuritySurface
+    )
 }

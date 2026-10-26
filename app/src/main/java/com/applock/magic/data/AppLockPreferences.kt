@@ -26,6 +26,7 @@ class AppLockPreferences(context: Context) {
         private const val KEY_LOCK_POLICY = "lock_policy_type"
         private const val KEY_STEALTH_MODE = "app_stealth_mode"
         private const val KEY_HIDE_APP_DETAILS_ON_LOCK = "hide_app_details_on_lock"
+        private const val KEY_HIDDEN_PACKAGES = "hidden_packages_list"
 
         // Sperr-Richtlinien
         const val POLICY_SCREEN_OFF = 0     // Standard & Empfohlen: Bleibt aktiv, bis das Display ausgeschaltet wird
@@ -125,5 +126,23 @@ class AppLockPreferences(context: Context) {
 
     fun setHideAppDetailsOnLock(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_HIDE_APP_DETAILS_ON_LOCK, enabled).apply()
+    }
+
+    fun getHiddenPackages(): Set<String> {
+        return prefs.getStringSet(KEY_HIDDEN_PACKAGES, emptySet()) ?: emptySet()
+    }
+
+    fun setPackageHidden(packageName: String, hidden: Boolean) {
+        val current = (prefs.getStringSet(KEY_HIDDEN_PACKAGES, emptySet()) ?: emptySet()).toMutableSet()
+        if (hidden) {
+            current.add(packageName)
+        } else {
+            current.remove(packageName)
+        }
+        prefs.edit().putStringSet(KEY_HIDDEN_PACKAGES, current).apply()
+    }
+
+    fun isPackageHidden(packageName: String): Boolean {
+        return getHiddenPackages().contains(packageName)
     }
 }

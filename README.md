@@ -36,6 +36,29 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 
 ---
 
+## 👻 Andere Apps komplett verstecken (App-Hider)
+
+Mit dem dedizierten Tab **„👻 Verstecken“** können installierte Anwendungen vollständig vom Startbildschirm, aus dem App-Drawer und vom Sperrbildschirm entfernt werden:
+
+* **Effekt:** Die Ziel-App verschwindet restlos aus allen Launchern, Gesten-Listen und Menüs.
+* **Wo ist die App noch auffindbar?**
+  1. In **Android-Einstellungen ➔ Apps ➔ Alle Apps** (dort als „Deaktiviert“ bzw. „Ausgeblendet“ aufgeführt).
+  2. Im **Dateimanager / Dateien-App** (App-Daten, Caches und Konten bleiben vollständig unberührt).
+* **Freischaltung:** Android verbietet Drittanbieter-Apps standardmäßig, fremde Apps ohne Freigabe aus dem Launcher zu entfernen, um Missbrauch zu verhindern. ShieldLock Pro unterstützt vier Freischaltungs-Wege:
+  1. **Device-Owner (Empfohlen / Einmalig per PC/Mac):**  
+     ```bash
+     adb shell dpm set-device-owner com.applock.magic/.receiver.ShieldLockDeviceAdminReceiver
+     ```
+     *Ermöglicht das sofortige, native Verstecken und Wiederherstellen über die offizielle Android-API `DevicePolicyManager.setApplicationHidden`.*
+  2. **Ohne PC per Shizuku / WLAN-Debugging:**  
+     *Führt `pm disable-user --user 0 <pkg>` kabellos direkt auf dem Honor Magic 8 Pro aus.*
+  3. **Sofort ohne Berechtigungen im Tab „Tarnen“:**  
+     *Versteckt die App optisch, indem ihr ein gefälschtes Icon (z. B. Rechner, Notizblock, Wetter) und ein unauffälliger Name zugewiesen wird.*
+  4. **Honor MagicOS Bordmittel:**  
+     *In MagicOS unter Einstellungen ➔ Datenschutz ➔ Privater Bereich (PrivateSpace).*
+
+---
+
 ## 🎭 App-Tarnung & Icon-Changer
 
 In ShieldLock Pro gibt es den dedizierten Tab **„🎭 Icon Changer“**:
