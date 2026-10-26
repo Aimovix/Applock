@@ -20,8 +20,8 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 - ⚡ **0ms-Echtzeitwächter:** Fenstererkennung über System-Level-Accessibility-Events (`TYPE_WINDOW_STATE_CHANGED` & `TYPE_WINDOWS_CHANGED`) statt batteriefressendem Polling.
 - 🧬 **Passkey- & Hardware-Biometrie:** Volle Unterstützung für Ultraschall-Fingerabdruck, 3D-ToF-Gesichtserkennung und nahtlosem PIN-/Muster-Fallback bei Lockout.
 - 👁️ **Instant 3D-Gesichtsscan:** Nutzung von `setConfirmationRequired(false)` – auf dem Honor Magic 8 Pro entsperrt die App sofort bei Blickkontakt ohne zweiten Display-Klick.
+- 🎨 **Sichtbare native Sperrmaske mit Ziel-App-Branding:** Zeigt direkt das echte Icon, den Namen der blockierten App und die Entsperr-Schaltflächen ohne störenden Overlay-Schleier.
 - 🔄 **Deterministische Handoff-State-Machine:** Ersetzt pauschale Zeittimer durch eine präzise Zustandslogik (`UNLOCK_HANDOFF` ➔ `UNLOCKED_ACTIVE`). Verhindert Re-Lock-Schleifen beim Schließen der Maske vollständig, verriegelt die App aber sofort beim Verlassen.
-- ⬛ **Synchroner Blackout-Vorhang ([`OverlayShieldManager`](app/src/main/java/com/applock/magic/overlay/OverlayShieldManager.kt)):** `TYPE_ACCESSIBILITY_OVERLAY` verleiht dem Prozess sofortigen "Visible"-Status für die verschärften Android 17 BAL-Richtlinien und verhindert 16ms Frame-Lecks des MagicOS 11 "Dynamic Liquid Glass"-Compositors.
 - 🪟 **Floating-Window & MagicOS Mini-Fenster-Schutz:** Scannt den gesamten Fenstertree (`flagRetrieveInteractiveWindows`), um zu verhindern, dass geschützte Apps über die MagicOS Smart-Seitenleiste oder schwebende Fenster entsperrt werden.
 - 🤖 **AI-Button & Magic Portal 2.0 Schutz:** `onProvideAssistContent()` und `onProvideAssistData()` verhindern das automatische Sniffen von App-Inhalten durch den Honor AI-Button oder Knuckle-Gesten.
 - 📺 **PiP & AudioFocus-Killer (WIU Status):** [`PipAndAudioGuard`](app/src/main/java/com/applock/magic/security/PipAndAudioGuard.kt) und [`LockScreenActivity`](app/src/main/java/com/applock/magic/ui/LockScreenActivity.kt) erzwingen `AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE` im While-In-Use Status und stoppen Ton-Lecks bei gesperrten PiP-Videos.
@@ -77,7 +77,7 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 | **Neustart-Lücke (Reboot Bypass)** | Nach Reboot Apps öffnen, bevor der Schutzdienst initialisiert ist | **Direct-Boot-Aware:** `LOCKED_BOOT_COMPLETED` startet den Schutz im hardwareverschlüsselten DPS noch vor der ersten PIN-Eingabe. |
 | **Systemuhr manipulieren** | Datum/Uhrzeit zurückstellen, um Zeitfenster zu umgehen | **Monotone Zeitrechnung:** Verwendung von `SystemClock.elapsedRealtime()`. Änderungen der Systemuhrzeit sind wirkungslos. |
 | **Task-Manager Snooping** | Sensible Inhalte in den Recent-Apps-Karten einsehen | **`FLAG_SECURE`:** Verhindert Screenshots, Videoaufnahmen und schwärzt die Vorschau im Task-Manager. |
-| **Frame-Leck beim Start (16ms Blur)** | Kurzes Aufblitzen von Inhalten im MagicOS 11 Liquid Glass Compositor | **`OverlayShieldManager`:** Synchroner Blackout-Vorhang mit Vollton (#0B0E14) blockiert sofort den Render-Buffer. |
+| **Frame-Leck beim Start (16ms Blur)** | Kurzes Aufblitzen von Inhalten im MagicOS 11 Liquid Glass Compositor | **Feste Opaque-Maske:** [`LockScreenActivity`](app/src/main/java/com/applock/magic/ui/LockScreenActivity.kt) blockiert mit Vollton (#0F172A) sofort den Render-Buffer und zeigt das saubere UI an. |
 
 ---
 

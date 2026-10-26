@@ -17,7 +17,6 @@ import androidx.fragment.app.FragmentActivity
 import com.applock.magic.R
 import com.applock.magic.data.AppLockPreferences
 import com.applock.magic.data.LockStateManager
-import com.applock.magic.overlay.OverlayShieldManager
 import com.applock.magic.security.BiometricAuthManager
 
 class LockScreenActivity : FragmentActivity() {
@@ -214,7 +213,6 @@ class LockScreenActivity : FragmentActivity() {
     }
 
     private fun closeLockScreen(unlocked: Boolean) {
-        OverlayShieldManager.dismissBlackout(this)
         releaseAudioSuppression()
         LockStateManager.isLockScreenShowing.set(false)
         LockStateManager.authenticatingPackage = null
@@ -228,7 +226,6 @@ class LockScreenActivity : FragmentActivity() {
     }
 
     private fun exitToHomeScreen() {
-        OverlayShieldManager.dismissBlackout(this)
         releaseAudioSuppression()
         LockStateManager.isLockScreenShowing.set(false)
         LockStateManager.authenticatingPackage = null
@@ -255,7 +252,6 @@ class LockScreenActivity : FragmentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        OverlayShieldManager.dismissBlackout(this)
         releaseAudioSuppression()
         LockStateManager.isLockScreenShowing.set(false)
         if (LockStateManager.authenticatingPackage == targetPackage) {
