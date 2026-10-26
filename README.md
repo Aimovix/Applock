@@ -20,6 +20,7 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 - ⚡ **0ms-Echtzeitwächter:** Fenstererkennung über System-Level-Accessibility-Events (`TYPE_WINDOW_STATE_CHANGED` & `TYPE_WINDOWS_CHANGED`) statt batteriefressendem Polling.
 - 🧬 **Passkey- & Hardware-Biometrie:** Volle Unterstützung für Ultraschall-Fingerabdruck, 3D-ToF-Gesichtserkennung und nahtlosem PIN-/Muster-Fallback bei Lockout.
 - 👁️ **Instant 3D-Gesichtsscan:** Nutzung von `setConfirmationRequired(false)` – auf dem Honor Magic 8 Pro entsperrt die App sofort bei Blickkontakt ohne zweiten Display-Klick.
+- 🎭 **Integrierter Icon-Changer & Tarnung:** Passe das Icon und den Namen beliebiger Apps an – wähle entweder eigene Fotos aus der **Galerie / Dateien** oder aus 8 vorgefertigten **Tarn-Vorlagen** (Rechner, Notizen, Wetter, Uhr, Kamera, Kompass, Musik, Dateien). Erzeugt echte Pinned Shortcuts auf dem MagicOS Startbildschirm und passt die Sperrmaske an.
 - 🎨 **Sichtbare native Sperrmaske mit Ziel-App-Branding:** Zeigt direkt das echte Icon, den Namen der blockierten App und die Entsperr-Schaltflächen ohne störenden Overlay-Schleier.
 - 🔄 **Deterministische Handoff-State-Machine:** Ersetzt pauschale Zeittimer durch eine präzise Zustandslogik (`UNLOCK_HANDOFF` ➔ `UNLOCKED_ACTIVE`). Verhindert Re-Lock-Schleifen beim Schließen der Maske vollständig, verriegelt die App aber sofort beim Verlassen.
 - 🪟 **Floating-Window & MagicOS Mini-Fenster-Schutz:** Scannt den gesamten Fenstertree (`flagRetrieveInteractiveWindows`), um zu verhindern, dass geschützte Apps über die MagicOS Smart-Seitenleiste oder schwebende Fenster entsperrt werden.
@@ -31,6 +32,19 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 - 🛡️ **Deinstallationsschutz (Geräte-Admin):** Sperrt die Android-Systemfunktion zum Deinstallieren der App.
 - 🔒 **Opaque Maske mit `FLAG_SECURE`:** Kein Durchblitzen von Bildschirminhalten, keine Screenshots und geschwärzte Vorschau im Task-Manager.
 - 🔲 **Split-Screen-Schutz:** `android:resizeableActivity="false"` erzwingt die vollflächige Abdeckung des Displays.
+
+---
+
+## 🎭 App-Tarnung & Icon-Changer
+
+In ShieldLock Pro gibt es den dedizierten Tab **„🎭 Icon Changer“**:
+1. **Beliebige App auswählen:** Suche jede installierte oder geschützte App (z. B. WhatsApp, Instagram, Galerie, Banking).
+2. **Eigenes Foto oder Tarn-Vorlage wählen:**
+   - **Aus Galerie / Fotos / Dateien:** Wähle ein beliebiges Bild von deinem Smartphone. Es wird automatisch als scharfes Squircle-Icon aufbereitet.
+   - **Tarn-Vorlagen:** 8 vorinstallierte Vektor-Icons (*Rechner, Notizen, Wetter, Uhr, Kamera, Kompass, Musik, Dateien*).
+3. **Name frei anpassen:** Ändere z. B. „WhatsApp“ zu „Rechner“ oder „Notizblock“.
+4. **Zum Startbildschirm hinzufügen:** Platziert über `ShortcutManager.requestPinShortcut` eine Verknüpfung direkt auf deinem MagicOS Startbildschirm. Tippt man darauf, öffnet sich die App getarnt und wird direkt durch ShieldLock Pro geschützt.
+5. **Für Sperrmaske speichern:** Das gewählte Icon und der Tarn-Name werden auch auf der Sperrmaske angezeigt.
 
 ---
 

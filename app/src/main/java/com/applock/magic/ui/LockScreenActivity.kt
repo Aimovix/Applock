@@ -18,6 +18,7 @@ import com.applock.magic.R
 import com.applock.magic.data.AppLockPreferences
 import com.applock.magic.data.LockStateManager
 import com.applock.magic.security.BiometricAuthManager
+import com.applock.magic.util.IconCustomizerManager
 
 class LockScreenActivity : FragmentActivity() {
 
@@ -132,14 +133,22 @@ class LockScreenActivity : FragmentActivity() {
         }
 
         try {
+            val customBitmap = IconCustomizerManager.getCustomIcon(this, packageName)
+            val customLabel = IconCustomizerManager.getCustomLabel(this, packageName)
+
             val pm = packageManager
             val appInfo = pm.getApplicationInfo(packageName, 0)
-            val appLabel = pm.getApplicationLabel(appInfo).toString()
-            val appIcon = pm.getApplicationIcon(appInfo)
+            val defaultLabel = pm.getApplicationLabel(appInfo).toString()
+            val defaultIcon = pm.getApplicationIcon(appInfo)
 
-            tvTargetAppName.text = appLabel
-            imgTargetAppIcon.setImageDrawable(appIcon)
-            tvLockSubtitle.text = "$appLabel ist durch ShieldLock Pro geschützt"
+            val effectiveLabel = customLabel?.ifBlank { null } ?: defaultLabel
+            tvTargetAppName.text = effectiveLabel
+            if (customBitmap != null) {
+                imgTargetAppIcon.setImageBitmap(customBitmap)
+            } else {
+                imgTargetAppIcon.setImageDrawable(defaultIcon)
+            }
+            tvLockSubtitle.text = "$effectiveLabel ist durch ShieldLock Pro geschützt"
         } catch (_: Exception) {
             tvTargetAppName.text = getString(R.string.lock_screen_title)
             imgTargetAppIcon.setImageResource(android.R.drawable.ic_lock_lock)
@@ -151,7 +160,8 @@ class LockScreenActivity : FragmentActivity() {
         if (isAuthenticating) return
         isAuthenticating = true
 
-        val appLabel = targetPackage?.let { pkg ->
+        val customLabel = targetPackage?.let { IconCustomizerManager.getCustomLabel(this, it) }
+        val appLabel = customLabel?.ifBlank { null } ?: targetPackage?.let { pkg ->
             try {
                 val pm = packageManager
                 val info = pm.getApplicationInfo(pkg, 0)
