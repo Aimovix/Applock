@@ -24,6 +24,8 @@ class AppLockPreferences(context: Context) {
         private const val KEY_LOCKED_PACKAGES = "locked_packages"
         private const val KEY_PROTECT_SETTINGS = "protect_system_settings"
         private const val KEY_LOCK_POLICY = "lock_policy_type"
+        private const val KEY_STEALTH_MODE = "app_stealth_mode"
+        private const val KEY_HIDE_APP_DETAILS_ON_LOCK = "hide_app_details_on_lock"
 
         // Sperr-Richtlinien
         const val POLICY_SCREEN_OFF = 0     // Standard & Empfohlen: Bleibt aktiv, bis das Display ausgeschaltet wird
@@ -107,5 +109,21 @@ class AppLockPreferences(context: Context) {
 
     fun setProtectSettingsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PROTECT_SETTINGS, enabled).apply()
+    }
+
+    fun isStealthModeEnabled(): Boolean {
+        return prefs.getBoolean(KEY_STEALTH_MODE, false)
+    }
+
+    fun setStealthModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_STEALTH_MODE, enabled).apply()
+    }
+
+    fun isHideAppDetailsOnLock(): Boolean {
+        return prefs.getBoolean(KEY_HIDE_APP_DETAILS_ON_LOCK, false)
+    }
+
+    fun setHideAppDetailsOnLock(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_HIDE_APP_DETAILS_ON_LOCK, enabled).apply()
     }
 }

@@ -125,7 +125,7 @@ class LockScreenActivity : FragmentActivity() {
     }
 
     private fun updateTargetAppInfo(packageName: String?) {
-        if (packageName.isNullOrBlank()) {
+        if (packageName.isNullOrBlank() || prefs.isHideAppDetailsOnLock()) {
             tvTargetAppName.text = getString(R.string.lock_screen_title)
             imgTargetAppIcon.setImageResource(android.R.drawable.ic_lock_lock)
             tvLockSubtitle.text = getString(R.string.lock_screen_subtitle)
@@ -160,16 +160,20 @@ class LockScreenActivity : FragmentActivity() {
         if (isAuthenticating) return
         isAuthenticating = true
 
-        val customLabel = targetPackage?.let { IconCustomizerManager.getCustomLabel(this, it) }
-        val appLabel = customLabel?.ifBlank { null } ?: targetPackage?.let { pkg ->
-            try {
-                val pm = packageManager
-                val info = pm.getApplicationInfo(pkg, 0)
-                pm.getApplicationLabel(info).toString()
-            } catch (_: Exception) {
-                null
-            }
-        } ?: getString(R.string.lock_screen_title)
+        val appLabel = if (prefs.isHideAppDetailsOnLock()) {
+            getString(R.string.lock_screen_title)
+        } else {
+            val customLabel = targetPackage?.let { IconCustomizerManager.getCustomLabel(this, it) }
+            customLabel?.ifBlank { null } ?: targetPackage?.let { pkg ->
+                try {
+                    val pm = packageManager
+                    val info = pm.getApplicationInfo(pkg, 0)
+                    pm.getApplicationLabel(info).toString()
+                } catch (_: Exception) {
+                    null
+                }
+            } ?: getString(R.string.lock_screen_title)
+        }
 
         biometricAuthManager.authenticate(
             title = "$appLabel entsperren",

@@ -49,6 +49,29 @@ In ShieldLock Pro gibt es den dedizierten Tab **„🎭 Icon Changer“**:
 
 ---
 
+## 🕵️ Unsichtbarer Stealth-Modus (App-Symbol ausblenden) & Inkognito-Sperre
+
+ShieldLock Pro bietet eine vollständige Unsichtbarkeits-Option, mit der die App spurlos vom Startbildschirm/Launcher verschwindet, ohne deinstalliert zu werden:
+
+### 1. App-Symbol vom Startbildschirm entfernen (Stealth Mode)
+* **Funktionsweise:** Schaltet die Launcher-Komponente (`LauncherAlias`) über den Android `PackageManager` ab.
+* **Ergebnis:** Das Icon von ShieldLock Pro verschwindet vollständig vom Startbildschirm und aus dem App-Drawer. Für Außenstehende existiert auf dem Gerät keine AppLock-App.
+* **Schutzfunktion:** Der Barrierefreiheitsdienst, der Hintergrund-Wächter und der Deinstallationsschutz bleiben **vollständig aktiv und schützen weiterhin alle konfigurierten Apps**.
+* **Wie öffnet man ShieldLock Pro wieder?**
+  1. **Über die Dateien-App:** Beim Aktivieren wird automatisch eine Datei namens `ShieldLock_Oeffnen.html` im Ordner **Downloads** erstellt. Ein Antippen in der Dateien-App öffnet ShieldLock Pro per Deep-Link (`shieldlock://open`).
+  2. **Über die Android-Einstellungen:** Gehe zu **Einstellungen ➔ Apps ➔ Apps ➔ ShieldLock Pro** und tippe auf die Schaltfläche **„Öffnen“** oder **„Zusätzliche Einstellungen in der App“**.
+  3. **Über das Telefon-Tastenfeld:** Öffne die normale Telefon-App und wähle den geheimen Code:  
+     `*#*#744353#*#*` (*744353 = SHIELD*).
+  4. **Wieder einblenden:** In ShieldLock Pro einfach den Schalter für den Stealth-Modus deaktivieren, und das Icon erscheint sofort wieder auf dem Startbildschirm.
+
+### 2. Inkognito-Sperrmaske
+* **Funktionsweise:** Schalter *„🔒 Inkognito-Sperrmaske“* in den Einstellungen aktivieren.
+* **Ergebnis:** Wenn eine geschützte App geöffnet wird, zeigt die Sperrmaske weder das originale App-Icon noch den echten Namen der Ziel-App an.
+* **Anzeige:** Stattdessen erscheint ein völlig neutrales Schloss-Symbol mit dem Titel *„Geschützter Bereich“* und dem Sicherheitshinweis *„Authentifizierung erforderlich: Diese Umgebung enthält extrem sensible, persönliche und private Inhalte.“*
+* **Vorteil:** Niemand, der über deine Schulter blickt, kann sehen, welche geheime App du gerade öffnen wolltest.
+
+---
+
 ## 🐞 Gründliche Dokumentation behobener Fehler & Härtungen
 
 ### 1. Das „Endlos-Fingerabdruck“-Problem (Infinite Loop)

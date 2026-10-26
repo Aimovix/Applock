@@ -78,6 +78,7 @@ import com.applock.magic.ui.theme.SecurityWarning
 import com.applock.magic.util.HonorMagicOsHelper
 import com.applock.magic.util.IconCustomizerManager
 import com.applock.magic.util.PermissionHelper
+import com.applock.magic.util.StealthModeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -113,6 +114,12 @@ class MainActivity : ComponentActivity() {
             AppLockForegroundService.start(this)
         }
     }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        refreshTrigger.value += 1
+    }
 }
 
 @Composable
@@ -125,6 +132,9 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
     var isDeviceAdmin by remember(refreshTrigger) { mutableStateOf(PermissionHelper.isDeviceAdminActive(context)) }
 
     var lockPolicy by remember { mutableIntStateOf(prefs.getLockPolicy()) }
+    var isStealthMode by remember(refreshTrigger) { mutableStateOf(StealthModeManager.isStealthModeActive(context)) }
+    var isHideAppDetails by remember { mutableStateOf(prefs.isHideAppDetailsOnLock()) }
+    var showStealthConfirmDialog by remember { mutableStateOf(false) }
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = AppLock, 1 = Icon Changer / Tarnung
     var searchQuery by remember { mutableStateOf("") }
@@ -171,6 +181,65 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
             onCustomizationChanged = {
                 customizationVersion += 1
             }
+        )
+    }
+
+    if (showStealthConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showStealthConfirmDialog = false },
+            title = {
+                Text(
+                    text = "App-Symbol vom Startbildschirm entfernen?",
+                    color = SecurityTextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "ShieldLock Pro wird aus dem Startbildschirm und App-Drawer ausgeblendet. Der Schutz bleibt voll aktiv.\n\n" +
+                                "Du kannst die App danach jederzeit öffnen über:\n" +
+                                "• Dateien ➔ Downloads ➔ 'ShieldLock_Oeffnen.html'\n" +
+                                "• Einstellungen ➔ Apps ➔ ShieldLock Pro ➔ 'Öffnen'\n" +
+                                "• Telefon-Tastenfeld: *#*#744353#*#*\n\n" +
+                                "Möchtest du das Symbol jetzt ausblenden?",
+                        color = SecurityTextSecondary,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showStealthConfirmDialog = false
+                        val success = StealthModeManager.setStealthMode(context, true)
+                        if (success) {
+                            isStealthMode = true
+                            prefs.setStealthModeEnabled(true)
+                            Toast.makeText(
+                                context,
+                                "Symbol ausgeblendet! Trigger-Datei in Downloads gespeichert.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(context, "Fehler beim Ausblenden", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SecurityAccent)
+                ) {
+                    Text("Jetzt ausblenden")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showStealthConfirmDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = SecuritySurfaceVariant)
+                ) {
+                    Text("Abbrechen", color = SecurityTextPrimary)
+                }
+            },
+            containerColor = SecuritySurface
         )
     }
 
@@ -335,6 +404,161 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                                     prefs.setLockPolicy(AppLockPreferences.POLICY_TIMEOUT_5MIN)
                                 }
                             )
+                        }
+                    }
+                }
+
+                // Unsichtbarer Stealth-Modus & Inkognito-Sperre
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = SecuritySurface),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Tarnung & Unsichtbarkeit",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SecurityTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Schalter: Stealth Mode (ShieldLock Pro Symbol verbergen)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "🕵️ App-Symbol ausblenden (Stealth Mode)",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = SecurityTextPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Entfernt ShieldLock Pro komplett vom Startbildschirm/Launcher. Nicht deinstalliert – bleibt im Hintergrund aktiv!",
+                                        fontSize = 12.sp,
+                                        color = SecurityTextSecondary,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Switch(
+                                    checked = isStealthMode,
+                                    onCheckedChange = { enable ->
+                                        if (enable) {
+                                            showStealthConfirmDialog = true
+                                        } else {
+                                            val success = StealthModeManager.setStealthMode(context, false)
+                                            if (success) {
+                                                isStealthMode = false
+                                                prefs.setStealthModeEnabled(false)
+                                                Toast.makeText(context, "App-Symbol wieder auf Startbildschirm sichtbar", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = SecurityAccent
+                                    )
+                                )
+                            }
+
+                            if (isStealthMode) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = SecuritySurfaceVariant),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = "So öffnest du ShieldLock Pro im Stealth-Modus:",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SecurityAccent
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "1. In 'Dateien' (Downloads): 'ShieldLock_Oeffnen.html' antippen\n" +
+                                                    "2. In den Android-Einstellungen: Apps ➔ ShieldLock Pro ➔ Öffnen\n" +
+                                                    "3. Im Telefon-Wählfeld: *#*#744353#*#* anrufen",
+                                            fontSize = 12.sp,
+                                            color = SecurityTextPrimary,
+                                            lineHeight = 16.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Button(
+                                                onClick = {
+                                                    val created = StealthModeManager.createTriggerFiles(context)
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (created) "Trigger-Datei 'ShieldLock_Oeffnen.html' in Downloads erstellt!" else "Fehler beim Erstellen",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(containerColor = SecurityAccent),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text("Datei in Downloads anlegen", fontSize = 11.sp, maxLines = 1)
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    PermissionHelper.openAppDetailsSettings(context)
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(containerColor = SecurityDarkBackground),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text("In Einstellungen öffnen", fontSize = 11.sp, color = SecurityTextPrimary, maxLines = 1)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Schalter: Ziel-App auf Sperrmaske verbergen
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "🔒 Inkognito-Sperrmaske",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = SecurityTextPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Verbirgt beim Sperren den echten Namen und das Icon der Ziel-App (zeigt nur neutralen 'Geschützten Bereich').",
+                                        fontSize = 12.sp,
+                                        color = SecurityTextSecondary,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Switch(
+                                    checked = isHideAppDetails,
+                                    onCheckedChange = { enable ->
+                                        isHideAppDetails = enable
+                                        prefs.setHideAppDetailsOnLock(enable)
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = SecurityAccent
+                                    )
+                                )
+                            }
                         }
                     }
                 }
