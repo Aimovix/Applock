@@ -5,5 +5,6 @@
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="false"
     android:description="@string/accessibility_service_desc"
+    android:isAccessibilityTool="true"
     android:notificationTimeout="20"
     android:settingsActivity="com.applock.magic.ui.MainActivity" />

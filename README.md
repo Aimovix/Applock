@@ -1,6 +1,6 @@
-# 🛡️ ShieldLock Pro - Hardware Biometric AppLock für Android 14/15 & Honor MagicOS
+# 🛡️ ShieldLock Pro - Hardware Biometric AppLock für Android 14/15/17 & Honor MagicOS
 
-**ShieldLock Pro** ist ein hochperformantes, modulares Android-Sicherheits- und AppLock-System. Es wurde speziell für moderne Android-Sicherheitsarchitekturen (Android 14/15, API 35) und Flaggschiff-Geräte mit hardwarebasierten Sensoren wie das **Honor Magic 8 Pro** (MagicOS 8/9/11) entwickelt.
+**ShieldLock Pro** ist ein hochperformantes, modulares Android-Sicherheits- und AppLock-System. Es wurde speziell für moderne Android-Sicherheitsarchitekturen (Android 14/15/17, API 35+) und Flaggschiff-Geräte mit hardwarebasierten Sensoren wie das **Honor Magic 8 Pro** (MagicOS 8/9/11, Firmware `11.0.0.130(C431)`) entwickelt.
 
 ---
 
@@ -21,10 +21,12 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 - 🧬 **Passkey- & Hardware-Biometrie:** Volle Unterstützung für Ultraschall-Fingerabdruck, 3D-ToF-Gesichtserkennung und nahtlosem PIN-/Muster-Fallback bei Lockout.
 - 👁️ **Instant 3D-Gesichtsscan:** Nutzung von `setConfirmationRequired(false)` – auf dem Honor Magic 8 Pro entsperrt die App sofort bei Blickkontakt ohne zweiten Display-Klick.
 - 🔄 **Deterministische Handoff-State-Machine:** Ersetzt pauschale Zeittimer durch eine präzise Zustandslogik (`UNLOCK_HANDOFF` ➔ `UNLOCKED_ACTIVE`). Verhindert Re-Lock-Schleifen beim Schließen der Maske vollständig, verriegelt die App aber sofort beim Verlassen.
+- ⬛ **Synchroner Blackout-Vorhang ([`OverlayShieldManager`](app/src/main/java/com/applock/magic/overlay/OverlayShieldManager.kt)):** `TYPE_ACCESSIBILITY_OVERLAY` verleiht dem Prozess sofortigen "Visible"-Status für die verschärften Android 17 BAL-Richtlinien und verhindert 16ms Frame-Lecks des MagicOS 11 "Dynamic Liquid Glass"-Compositors.
 - 🪟 **Floating-Window & MagicOS Mini-Fenster-Schutz:** Scannt den gesamten Fenstertree (`flagRetrieveInteractiveWindows`), um zu verhindern, dass geschützte Apps über die MagicOS Smart-Seitenleiste oder schwebende Fenster entsperrt werden.
-- 📺 **PiP & AudioFocus-Killer:** [`PipAndAudioGuard`](app/src/main/java/com/applock/magic/security/PipAndAudioGuard.kt) überwacht `AppOpsManager.OPSTR_PICTURE_IN_PICTURE`. Geht eine gesperrte App in PiP, wird der Audio-Fokus (`AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE`) sofort entzogen und die Sperre ausgelöst.
-- 🚀 **Android 14/15 BAL-Absicherung:** Nutzt `ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED`, damit Sperrmasken aus Hintergrunddiensten nie durch Android 14/15-Restriktionen verworfen werden.
+- 🤖 **AI-Button & Magic Portal 2.0 Schutz:** `onProvideAssistContent()` und `onProvideAssistData()` verhindern das automatische Sniffen von App-Inhalten durch den Honor AI-Button oder Knuckle-Gesten.
+- 📺 **PiP & AudioFocus-Killer (WIU Status):** [`PipAndAudioGuard`](app/src/main/java/com/applock/magic/security/PipAndAudioGuard.kt) und [`LockScreenActivity`](app/src/main/java/com/applock/magic/ui/LockScreenActivity.kt) erzwingen `AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE` im While-In-Use Status und stoppen Ton-Lecks bei gesperrten PiP-Videos.
 - 🔐 **Direct-Boot-Aware & Device-Protected Storage:** Einstellungen und Sperrlisten liegen im hardwareverschlüsselten DPS (`createDeviceProtectedStorageContext()`), sodass der Schutz auch nach einem Neustart vor der ersten PIN-Eingabe (`LOCKED_BOOT_COMPLETED`) aktiv ist.
+- 🛡️ **Advanced Protection / Sideloading-Konformität:** `android:isAccessibilityTool="true"` im Accessibility-XML verhindert automatische Abschaltungen bei aktiviertem Google Advanced Protection Mode.
 - 🧹 **Zero-Recents-Footprint:** `android:noHistory="true"`, `android:excludeFromRecents="true"` und `finishAndRemoveTask()` schützen vor dem automatischen Beenden durch den MagicOS Task-Manager.
 - 🛡️ **Deinstallationsschutz (Geräte-Admin):** Sperrt die Android-Systemfunktion zum Deinstallieren der App.
 - 🔒 **Opaque Maske mit `FLAG_SECURE`:** Kein Durchblitzen von Bildschirminhalten, keine Screenshots und geschwärzte Vorschau im Task-Manager.
@@ -70,23 +72,27 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 | **Erzwungenes Beenden (Force Stop)** | In den Android-App-Infos auf „Stoppen erzwingen“ tippen | **System-Sperre:** `com.android.settings`, Paket-Installer und Honor SystemManager sind standardmäßig in der Sperrliste verankert. |
 | **Speicherdaten löschen** | Löschen von Cache und App-Daten in den Einstellungen | Durch die Sperrung der Android-Einstellungen und Installer unzugänglich. |
 | **Split-Screen & Floating-Window** | Geschützte App in geteiltem Bildschirm oder Mini-Fenster öffnen | **`android:resizeableActivity="false"` + `TYPE_WINDOWS_CHANGED`-Scan:** Erzwingt Vollbild und erkennt auch schwebende Mini-Fenster. |
-| **PiP-Videobypass** | Videoanruf / Video in Picture-in-Picture weiterlaufen lassen | **`PipAndAudioGuard`:** Entzieht sofort die Audioberechtigung (`AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE`) und verriegelt den Bildschirm. |
+| **AI-Button / Magic Portal 2.0** | Bildschirminhalte über den Honor AI-Button oder Gesten scannen | **Assist-Sperre:** `onProvideAssistContent()` und `FLAG_SECURE` blockieren KI-Screen-Sniffing vollständig. |
+| **PiP-Videobypass & Ton-Leak** | Videoanruf / Video in Picture-in-Picture weiterlaufen lassen | **`PipAndAudioGuard` + WIU Focus:** Entzieht sofort die Audioberechtigung (`AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE`) und verriegelt den Bildschirm. |
 | **Neustart-Lücke (Reboot Bypass)** | Nach Reboot Apps öffnen, bevor der Schutzdienst initialisiert ist | **Direct-Boot-Aware:** `LOCKED_BOOT_COMPLETED` startet den Schutz im hardwareverschlüsselten DPS noch vor der ersten PIN-Eingabe. |
 | **Systemuhr manipulieren** | Datum/Uhrzeit zurückstellen, um Zeitfenster zu umgehen | **Monotone Zeitrechnung:** Verwendung von `SystemClock.elapsedRealtime()`. Änderungen der Systemuhrzeit sind wirkungslos. |
 | **Task-Manager Snooping** | Sensible Inhalte in den Recent-Apps-Karten einsehen | **`FLAG_SECURE`:** Verhindert Screenshots, Videoaufnahmen und schwärzt die Vorschau im Task-Manager. |
-| **Frame-Leck beim Start** | Kurzes Aufblitzen von Chats vor Erscheinen der Sperre | **Feste Opaque-Maske:** [`LockScreenActivity`](app/src/main/java/com/applock/magic/ui/LockScreenActivity.kt) blockiert sofort den Render-Buffer und alle Touch-Events. |
+| **Frame-Leck beim Start (16ms Blur)** | Kurzes Aufblitzen von Inhalten im MagicOS 11 Liquid Glass Compositor | **`OverlayShieldManager`:** Synchroner Blackout-Vorhang mit Vollton (#0B0E14) blockiert sofort den Render-Buffer. |
 
 ---
 
-## 📱 Spezielle Einrichtung auf dem Honor Magic 8 Pro (MagicOS)
+## 📱 Spezielle Einrichtung auf dem Honor Magic 8 Pro (MagicOS 11)
 
-Damit MagicOS den Hintergrundwächter nicht im Ruhezustand beendet, müssen folgende 4 Einstellungen vorgenommen werden:
-
-### 1. Eingeschränkte Einstellungen aufheben (Android 14 Sideload-Schutz)
+### 1. Eingeschränkte Einstellungen aufheben (Sideload-Schutz)
 Da die APK manuell installiert wird, blockiert Android standardmäßig den Barrierefreiheitsdienst:
-1. `Einstellungen` ➔ `Apps` ➔ `Apps` ➔ `ShieldLock Pro` auswählen.
-2. Oben rechts auf die **drei Punkte (⋮)** tippen.
-3. **„Eingeschränkte Einstellungen zulassen“** wählen und per Fingerabdruck/PIN bestätigen.
+* **Option A (In den Einstellungen):**
+  1. `Einstellungen` ➔ `Apps` ➔ `Apps` ➔ `ShieldLock Pro` auswählen.
+  2. Oben rechts auf die **drei Punkte (⋮)** tippen.
+  3. **„Eingeschränkte Einstellungen zulassen“** wählen und per Fingerabdruck/PIN bestätigen.
+* **Option B (Schnellbefehl per ADB):**
+  ```powershell
+  & "C:\Users\Yunes\AppData\Local\Android\Sdk\platform-tools\adb.exe" shell appops set com.applock.magic ACCESS_RESTRICTED_SETTINGS allow
+  ```
 
 ### 2. MagicOS App-Start (Auto-Launch) konfigurieren
 1. In ShieldLock Pro auf **„MagicOS App-Start öffnen“** tippen (oder `Einstellungen` ➔ `Akku` ➔ `App-Start`).
@@ -134,7 +140,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 ## 🏗️ Technische Spezifikationen
 
 - **Min SDK:** 26 (Android 8.0)
-- **Target SDK / Compile SDK:** 35 (Android 15)
+- **Target SDK / Compile SDK:** 35 (Android 15 / kompatibel bis Android 17 / MagicOS 11)
 - **Android Gradle Plugin (AGP):** 9.0.1
 - **Gradle:** 9.1.0
 - **Kotlin:** 2.0.21

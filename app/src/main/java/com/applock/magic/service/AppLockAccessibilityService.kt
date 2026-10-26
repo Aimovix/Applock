@@ -12,6 +12,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
 import com.applock.magic.data.AppLockPreferences
 import com.applock.magic.data.LockStateManager
+import com.applock.magic.overlay.OverlayShieldManager
 import com.applock.magic.security.PipAndAudioGuard
 import com.applock.magic.ui.LockScreenActivity
 
@@ -29,6 +30,7 @@ class AppLockAccessibilityService : AccessibilityService() {
                 prefs.lockAllImmediately()
                 lastPackage = ""
                 lastTriggerTime = 0L
+                OverlayShieldManager.dismissBlackout(this@AppLockAccessibilityService)
             }
         }
     }
@@ -127,6 +129,9 @@ class AppLockAccessibilityService : AccessibilityService() {
     }
 
     private fun triggerLock(packageName: String) {
+        // 1. Synchrones Blackout-Overlay einhängen (verleiht unserem Prozess unter Android 17 / MagicOS 11 sofort "Visible"-Status)
+        OverlayShieldManager.showInstantBlackout(this)
+
         val lockIntent = Intent(this, LockScreenActivity::class.java).apply {
             putExtra(LockScreenActivity.EXTRA_PACKAGE_NAME, packageName)
             addFlags(
@@ -139,9 +144,16 @@ class AppLockAccessibilityService : AccessibilityService() {
 
         val options = ActivityOptions.makeBasic().apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                setPendingIntentBackgroundActivityStartMode(
-                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
-                )
+                try {
+                    // Modus 2 = MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE (Android 15+)
+                    val mode = if (Build.VERSION.SDK_INT >= 35) 2 else 1
+                    setPendingIntentBackgroundActivityStartMode(mode)
+                } catch (_: Exception) {
+                    @Suppress("DEPRECATION")
+                    setPendingIntentBackgroundActivityStartMode(
+                        ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                    )
+                }
             }
         }
         startActivity(lockIntent, options.toBundle())
@@ -159,6 +171,7 @@ class AppLockAccessibilityService : AccessibilityService() {
         try {
             pipAndAudioGuard.stop()
         } catch (_: Exception) {}
+        OverlayShieldManager.dismissBlackout(this)
         LockStateManager.authenticatingPackage = null
     }
 }

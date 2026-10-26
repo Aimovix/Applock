@@ -1,6 +1,11 @@
 package com.applock.magic.ui
 
+import android.app.assist.AssistContent
+import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -12,6 +17,7 @@ import androidx.fragment.app.FragmentActivity
 import com.applock.magic.R
 import com.applock.magic.data.AppLockPreferences
 import com.applock.magic.data.LockStateManager
+import com.applock.magic.overlay.OverlayShieldManager
 import com.applock.magic.security.BiometricAuthManager
 
 class LockScreenActivity : FragmentActivity() {
@@ -31,6 +37,8 @@ class LockScreenActivity : FragmentActivity() {
     private lateinit var btnUnlock: Button
     private lateinit var btnHome: Button
 
+    private var audioFocusRequest: AudioFocusRequest? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -43,7 +51,7 @@ class LockScreenActivity : FragmentActivity() {
         // 2. Zustand sofort registrieren, um Doppelstarts durch Event-Races zu verhindern
         LockStateManager.isLockScreenShowing.set(true)
 
-        // 3. Opaque Schutzmaske laden (verhindert Durchscheinen der Ziel-App)
+        // 3. Opaque Schutzmaske laden (fester Vollton gegen MagicOS 11 Liquid Glass Blur-Bugs)
         setContentView(R.layout.layout_overlay_lock)
 
         prefs = AppLockPreferences(this)
@@ -63,6 +71,25 @@ class LockScreenActivity : FragmentActivity() {
 
         // 5. Biometrischen Dialog automatisch starten
         startBiometricAuthentication()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Unter Android 17 / MagicOS 11 hat die sichtbare Activity vollen While-In-Use (WIU) Status.
+        // Erst hier greift requestAudioFocus garantiert gegen PiP-Hintergrundaudio!
+        suppressAudioPlayback()
+    }
+
+    override fun onProvideAssistContent(outContent: AssistContent?) {
+        super.onProvideAssistContent(outContent)
+        // Verhindert, dass der Honor Magic 8 Pro AI-Button / Magic Portal Metadaten abgreift
+        outContent?.structuredData = null
+        outContent?.webUri = null
+    }
+
+    override fun onProvideAssistData(data: Bundle?) {
+        super.onProvideAssistData(data)
+        data?.clear()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -155,7 +182,40 @@ class LockScreenActivity : FragmentActivity() {
         )
     }
 
+    private fun suppressAudioPlayback() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener {}
+                .build()
+            audioFocusRequest = request
+            am.requestAudioFocus(request)
+        } else {
+            @Suppress("DEPRECATION")
+            am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+        }
+    }
+
+    private fun releaseAudioSuppression() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+            audioFocusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            am.abandonAudioFocus(null)
+        }
+    }
+
     private fun closeLockScreen(unlocked: Boolean) {
+        OverlayShieldManager.dismissBlackout(this)
+        releaseAudioSuppression()
         LockStateManager.isLockScreenShowing.set(false)
         LockStateManager.authenticatingPackage = null
         finish()
@@ -168,6 +228,8 @@ class LockScreenActivity : FragmentActivity() {
     }
 
     private fun exitToHomeScreen() {
+        OverlayShieldManager.dismissBlackout(this)
+        releaseAudioSuppression()
         LockStateManager.isLockScreenShowing.set(false)
         LockStateManager.authenticatingPackage = null
         val homeIntent = Intent(Intent.ACTION_MAIN).apply {
@@ -193,6 +255,8 @@ class LockScreenActivity : FragmentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        OverlayShieldManager.dismissBlackout(this)
+        releaseAudioSuppression()
         LockStateManager.isLockScreenShowing.set(false)
         if (LockStateManager.authenticatingPackage == targetPackage) {
             LockStateManager.authenticatingPackage = null
