@@ -1,0 +1,14 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+app/build/
+
+# Ausdrücklich die Release- und Debug-APKs für das Repository einbinden
+!ShieldLockPro-release.apk
+!ShieldLockPro-debug.apk

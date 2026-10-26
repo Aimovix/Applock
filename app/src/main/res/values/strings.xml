@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">ShieldLock Pro</string>
+    <string name="accessibility_service_desc">Erkennt blitzschnell den Wechsel von Apps, um geschützte Anwendungen mit Biometrie (Fingerabdruck / 3D-Gesicht) zu sichern.</string>
+    <string name="notification_channel_name">AppLock Schutzdienst</string>
+    <string name="notification_channel_desc">Hält den Schutzdienst aktiv und verhindert das Beenden durch das System.</string>
+    <string name="notification_title">Echtzeit-Schutz aktiv</string>
+    <string name="notification_text">Apps sind durch Hardware-Biometrie geschützt</string>
+    
+    <string name="biometric_title">App entsperren</string>
+    <string name="biometric_subtitle">Nutze deinen Fingerabdruck oder 3D-Gesichtsscan</string>
+    <string name="biometric_cancel">Abbrechen</string>
+</resources>
