@@ -7,14 +7,15 @@
     <string name="notification_text">Apps sind durch Hardware-Biometrie geschützt</string>
     
     <string name="biometric_title">App entsperren</string>
-    <string name="biometric_subtitle">Nutze deinen Fingerabdruck oder 3D-Gesichtsscan</string>
+    <string name="biometric_subtitle">Authentifizierung erforderlich: Diese Umgebung enthält extrem sensible und private Inhalte.</string>
     <string name="biometric_cancel">Abbrechen</string>
 
     <string name="device_admin_label">ShieldLock Pro Deinstallationsschutz</string>
     <string name="device_admin_desc">Verhindert die unbefugte Deinstallation oder das Erzwingen des Beendens der Schutz-App.</string>
 
-    <string name="lock_screen_title">App geschützt</string>
-    <string name="lock_screen_subtitle">Entsperren mit Fingerabdruck, 3D-Gesicht oder PIN</string>
-    <string name="lock_screen_unlock_btn">Jetzt entsperren</string>
+    <string name="lock_screen_title">Geschützter Bereich</string>
+    <string name="lock_screen_subtitle">Authentifizierung erforderlich: Diese Umgebung enthält extrem sensible, persönliche und private Inhalte.</string>
+    <string name="lock_screen_subtitle_with_app">Authentifizierung erforderlich: %1$s enthält extrem sensible, persönliche und private Inhalte.</string>
+    <string name="lock_screen_unlock_btn">Jetzt per Fingerabdruck entsperren</string>
     <string name="lock_screen_home_btn">Zurück zum Startbildschirm</string>
 </resources>

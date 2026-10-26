@@ -148,7 +148,7 @@ class LockScreenActivity : FragmentActivity() {
             } else {
                 imgTargetAppIcon.setImageDrawable(defaultIcon)
             }
-            tvLockSubtitle.text = "$effectiveLabel ist durch ShieldLock Pro geschützt"
+            tvLockSubtitle.text = getString(R.string.lock_screen_subtitle_with_app, effectiveLabel)
         } catch (_: Exception) {
             tvTargetAppName.text = getString(R.string.lock_screen_title)
             imgTargetAppIcon.setImageResource(android.R.drawable.ic_lock_lock)
@@ -173,7 +173,7 @@ class LockScreenActivity : FragmentActivity() {
 
         biometricAuthManager.authenticate(
             title = "$appLabel entsperren",
-            subtitle = "Mit Fingerabdruck, 3D-Gesicht oder PIN bestätigen",
+            subtitle = getString(R.string.biometric_subtitle),
             onSuccess = {
                 isAuthenticating = false
                 targetPackage?.let { pkg ->
