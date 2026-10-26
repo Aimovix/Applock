@@ -2,11 +2,23 @@ package com.applock.magic.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
+import android.os.SystemClock
 
 class AppLockPreferences(context: Context) {
 
+    private val storageContext: Context = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        val dps = context.createDeviceProtectedStorageContext()
+        try {
+            dps.moveSharedPreferencesFrom(context, "shield_lock_prefs")
+        } catch (_: Exception) {}
+        dps
+    } else {
+        context
+    }
+
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("shield_lock_prefs", Context.MODE_PRIVATE)
+        storageContext.getSharedPreferences("shield_lock_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_LOCKED_PACKAGES = "locked_packages"
@@ -62,28 +74,19 @@ class AppLockPreferences(context: Context) {
     }
 
     fun unlockPackageTemporarily(packageName: String) {
-        val timeoutMs = when (getLockPolicy()) {
-            POLICY_SCREEN_OFF -> -1L // Bleibt aktiv bis Display-Aus
-            POLICY_IMMEDIATE -> 0L  // Bleibt aktiv solange im Vordergrund (mit 15s Mindestschutz)
-            POLICY_TIMEOUT_1MIN -> 60_000L
-            POLICY_TIMEOUT_5MIN -> 300_000L
-            else -> -1L
+        val now = SystemClock.elapsedRealtime()
+        val expiryMs = when (getLockPolicy()) {
+            POLICY_SCREEN_OFF -> Long.MAX_VALUE // Bleibt aktiv bis Display-Aus
+            POLICY_IMMEDIATE -> Long.MAX_VALUE  // Bleibt aktiv solange im Vordergrund (wird bei Wechsel entzogen)
+            POLICY_TIMEOUT_1MIN -> now + 60_000L
+            POLICY_TIMEOUT_5MIN -> now + 300_000L
+            else -> Long.MAX_VALUE
         }
-        LockStateManager.grantUnlock(packageName, timeoutMs)
+        LockStateManager.grantUnlockHandoff(packageName, expiryMs)
     }
 
     fun handleAppSwitch(newPackage: String) {
-        val previous = LockStateManager.currentForegroundPackage
-        if (previous != null && previous != newPackage && !LockStateManager.isTransientPackage(newPackage)) {
-            // Wenn die Richtlinie "Sofort sperren" ist, verfällt die Freigabe der verlassenen App,
-            // sofern sie nicht gerade eben (unter 8s) entsperrt wurde
-            if (getLockPolicy() == POLICY_IMMEDIATE && getLockedPackages().contains(previous)) {
-                LockStateManager.revokeUnlock(previous, force = false)
-            }
-        }
-        if (!LockStateManager.isTransientPackage(newPackage)) {
-            LockStateManager.currentForegroundPackage = newPackage
-        }
+        LockStateManager.onPackageFocused(newPackage, getLockPolicy())
     }
 
     fun lockAllImmediately() {

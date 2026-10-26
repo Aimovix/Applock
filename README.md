@@ -1,6 +1,6 @@
 # 🛡️ ShieldLock Pro - Hardware Biometric AppLock für Android 14/15 & Honor MagicOS
 
-**ShieldLock Pro** ist ein hochperformantes, modulares Android-Sicherheits- und AppLock-System. Es wurde speziell für moderne Android-Sicherheitsarchitekturen (Android 14/15, API 35) und Flaggschiff-Geräte mit hardwarebasierten Sensoren wie das **Honor Magic 8 Pro** (MagicOS 8/9) entwickelt.
+**ShieldLock Pro** ist ein hochperformantes, modulares Android-Sicherheits- und AppLock-System. Es wurde speziell für moderne Android-Sicherheitsarchitekturen (Android 14/15, API 35) und Flaggschiff-Geräte mit hardwarebasierten Sensoren wie das **Honor Magic 8 Pro** (MagicOS 8/9/11) entwickelt.
 
 ---
 
@@ -15,21 +15,24 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 
 ---
 
-## 🚀 Wichtigste Features auf einen Blick
+## 🚀 Wichtigste Features & Architektur-Highlights
 
-- ⚡ **0ms-Echtzeitwächter:** Fenstererkennung über System-Level-Accessibility-Events statt batteriefressendem Polling.
+- ⚡ **0ms-Echtzeitwächter:** Fenstererkennung über System-Level-Accessibility-Events (`TYPE_WINDOW_STATE_CHANGED` & `TYPE_WINDOWS_CHANGED`) statt batteriefressendem Polling.
 - 🧬 **Passkey- & Hardware-Biometrie:** Volle Unterstützung für Ultraschall-Fingerabdruck, 3D-ToF-Gesichtserkennung und nahtlosem PIN-/Muster-Fallback bei Lockout.
 - 👁️ **Instant 3D-Gesichtsscan:** Nutzung von `setConfirmationRequired(false)` – auf dem Honor Magic 8 Pro entsperrt die App sofort bei Blickkontakt ohne zweiten Display-Klick.
-- 🎨 **Dynamische Ziel-App-Erkennung:** Der Sperrbildschirm lädt zur Laufzeit das echte Icon und den Namen der blockierten App (z. B. WhatsApp) inklusive maßgeschneiderter Aufforderung.
+- 🔄 **Deterministische Handoff-State-Machine:** Ersetzt pauschale Zeittimer durch eine präzise Zustandslogik (`UNLOCK_HANDOFF` ➔ `UNLOCKED_ACTIVE`). Verhindert Re-Lock-Schleifen beim Schließen der Maske vollständig, verriegelt die App aber sofort beim Verlassen.
+- 🪟 **Floating-Window & MagicOS Mini-Fenster-Schutz:** Scannt den gesamten Fenstertree (`flagRetrieveInteractiveWindows`), um zu verhindern, dass geschützte Apps über die MagicOS Smart-Seitenleiste oder schwebende Fenster entsperrt werden.
+- 📺 **PiP & AudioFocus-Killer:** [`PipAndAudioGuard`](app/src/main/java/com/applock/magic/security/PipAndAudioGuard.kt) überwacht `AppOpsManager.OPSTR_PICTURE_IN_PICTURE`. Geht eine gesperrte App in PiP, wird der Audio-Fokus (`AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE`) sofort entzogen und die Sperre ausgelöst.
+- 🚀 **Android 14/15 BAL-Absicherung:** Nutzt `ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED`, damit Sperrmasken aus Hintergrunddiensten nie durch Android 14/15-Restriktionen verworfen werden.
+- 🔐 **Direct-Boot-Aware & Device-Protected Storage:** Einstellungen und Sperrlisten liegen im hardwareverschlüsselten DPS (`createDeviceProtectedStorageContext()`), sodass der Schutz auch nach einem Neustart vor der ersten PIN-Eingabe (`LOCKED_BOOT_COMPLETED`) aktiv ist.
+- 🧹 **Zero-Recents-Footprint:** `android:noHistory="true"`, `android:excludeFromRecents="true"` und `finishAndRemoveTask()` schützen vor dem automatischen Beenden durch den MagicOS Task-Manager.
 - 🛡️ **Deinstallationsschutz (Geräte-Admin):** Sperrt die Android-Systemfunktion zum Deinstallieren der App.
 - 🔒 **Opaque Maske mit `FLAG_SECURE`:** Kein Durchblitzen von Bildschirminhalten, keine Screenshots und geschwärzte Vorschau im Task-Manager.
-- 🔲 **Split-Screen & Multi-Window-Schutz:** `android:resizeableActivity="false"` erzwingt die vollflächige Abdeckung des Displays.
-- 🔄 **Intelligente Re-Lock-Richtlinien:** Wählbar zwischen *Bei Display-Aus*, *Sofort nach Verlassen*, *1 Minute* oder *5 Minuten*.
-- 🛡️ **Anti-Tamper & Anti-Force-Stop:** Schutz für Systemeinstellungen, Google Play Store und Honor SystemManager.
+- 🔲 **Split-Screen-Schutz:** `android:resizeableActivity="false"` erzwingt die vollflächige Abdeckung des Displays.
 
 ---
 
-## 🐞 Gründliche Dokumentation behobener Fehler
+## 🐞 Gründliche Dokumentation behobener Fehler & Härtungen
 
 ### 1. Das „Endlos-Fingerabdruck“-Problem (Infinite Loop)
 * **Problem:** Nach erfolgreichem Scan des Fingerabdrucks schloss sich die Sperre, öffnete sich aber im selben Bruchteil einer Sekunde erneut in einer Endlosschleife.
@@ -38,7 +41,7 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
   2. *Re-Lock Race:* Beim Beenden der `LockScreenActivity` feuerte Android ein `WINDOW_STATE_CHANGED`-Event für die wiederkehrende Ziel-App, was ohne Puffer sofort als erneuter Startversuch interpretiert wurde.
 * **Lösung:**
   1. **Zentraler Singleton `LockStateManager`:** Globaler, prozessweiter State-Manager mit atomarer `ConcurrentHashMap`. Alle Komponenten teilen sich exakt denselben Sperrzustand.
-  2. **8-Sekunden Anti-Flapping-Puffer:** `lastUnlockTimestamp` garantiert, dass eine soeben entsperrte App für mindestens 8 Sekunden nicht durch Fensterwechsel-Races erneut gesperrt werden kann.
+  2. **Deterministische Handoff-State-Machine:** Nach erfolgreicher Biometrie erhält die App den temporären Status `UNLOCK_HANDOFF`. Zwischen-Events von SystemUI und Launchern werden während des Schließens der Maske toleriert. Sobald die Ziel-App den Fokus übernimmt, schaltet der Status auf `UNLOCKED_ACTIVE`.
   3. **Sofort-Abbruch:** Erkennt der Barrierefreiheitsdienst, dass `!prefs.isPackageLocked(packageName)` zutrifft, bricht er die Ausführung sofort mit `return` ab, ohne einen neuen Task zu starten.
 
 ### 2. Das „Stuck zwischen Apps“-Problem (Deadlock beim Multitasking)
@@ -66,7 +69,9 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 | **App-Deinstallation** | App-Icon auf den Papierkorb / „Deinstallieren“ ziehen | **Geräte-Administrator (`ShieldLockDeviceAdminReceiver`):** Die Android-Systemfunktion zur Deinstallation wird komplett gesperrt. |
 | **Erzwungenes Beenden (Force Stop)** | In den Android-App-Infos auf „Stoppen erzwingen“ tippen | **System-Sperre:** `com.android.settings`, Paket-Installer und Honor SystemManager sind standardmäßig in der Sperrliste verankert. |
 | **Speicherdaten löschen** | Löschen von Cache und App-Daten in den Einstellungen | Durch die Sperrung der Android-Einstellungen und Installer unzugänglich. |
-| **Split-Screen / Multi-Window** | Geschützte App in geteiltem Bildschirm neben einer freien App öffnen | **`android:resizeableActivity="false"`:** Erzwingt die vollflächige Abdeckung des Displays und verhindert Split-Screen-Bypasses. |
+| **Split-Screen & Floating-Window** | Geschützte App in geteiltem Bildschirm oder Mini-Fenster öffnen | **`android:resizeableActivity="false"` + `TYPE_WINDOWS_CHANGED`-Scan:** Erzwingt Vollbild und erkennt auch schwebende Mini-Fenster. |
+| **PiP-Videobypass** | Videoanruf / Video in Picture-in-Picture weiterlaufen lassen | **`PipAndAudioGuard`:** Entzieht sofort die Audioberechtigung (`AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE`) und verriegelt den Bildschirm. |
+| **Neustart-Lücke (Reboot Bypass)** | Nach Reboot Apps öffnen, bevor der Schutzdienst initialisiert ist | **Direct-Boot-Aware:** `LOCKED_BOOT_COMPLETED` startet den Schutz im hardwareverschlüsselten DPS noch vor der ersten PIN-Eingabe. |
 | **Systemuhr manipulieren** | Datum/Uhrzeit zurückstellen, um Zeitfenster zu umgehen | **Monotone Zeitrechnung:** Verwendung von `SystemClock.elapsedRealtime()`. Änderungen der Systemuhrzeit sind wirkungslos. |
 | **Task-Manager Snooping** | Sensible Inhalte in den Recent-Apps-Karten einsehen | **`FLAG_SECURE`:** Verhindert Screenshots, Videoaufnahmen und schwärzt die Vorschau im Task-Manager. |
 | **Frame-Leck beim Start** | Kurzes Aufblitzen von Chats vor Erscheinen der Sperre | **Feste Opaque-Maske:** [`LockScreenActivity`](app/src/main/java/com/applock/magic/ui/LockScreenActivity.kt) blockiert sofort den Render-Buffer und alle Touch-Events. |

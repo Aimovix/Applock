@@ -51,7 +51,9 @@
         <!-- Sperr-Overlay-Activity: Task-isoliert mit singleTask und solidem Theme gegen Bildschirminhalt-Leaks -->
         <activity
             android:name=".ui.LockScreenActivity"
+            android:directBootAware="true"
             android:excludeFromRecents="true"
+            android:noHistory="true"
             android:exported="false"
             android:launchMode="singleTask"
             android:resizeableActivity="false"
@@ -62,6 +64,7 @@
         <!-- Zero-Latency Barrierefreiheitsdienst (Echtzeit-Erkennung von App-Wechseln) -->
         <service
             android:name=".service.AppLockAccessibilityService"
+            android:directBootAware="true"
             android:exported="false"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
@@ -75,6 +78,7 @@
         <!-- Persistenter Foreground Service (Hintergrund-Wächter & Keep-Alive) -->
         <service
             android:name=".service.AppLockForegroundService"
+            android:directBootAware="true"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
@@ -82,13 +86,15 @@
                 android:value="app_lock_protection" />
         </service>
 
-        <!-- Boot-Receiver für sofortigen Schutz nach Neustart -->
+        <!-- Boot-Receiver für sofortigen Schutz nach Neustart (auch vor der ersten PIN-Eingabe) -->
         <receiver
             android:name=".service.BootReceiver"
+            android:directBootAware="true"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>

@@ -1,5 +1,6 @@
 package com.applock.magic.service
 
+import android.app.ActivityOptions
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -174,7 +175,14 @@ class AppLockForegroundService : Service() {
                         Intent.FLAG_ACTIVITY_NO_ANIMATION
             )
         }
-        startActivity(lockIntent)
+        val options = ActivityOptions.makeBasic().apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                setPendingIntentBackgroundActivityStartMode(
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                )
+            }
+        }
+        startActivity(lockIntent, options.toBundle())
     }
 
     override fun onDestroy() {

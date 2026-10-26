@@ -1,19 +1,24 @@
 package com.applock.magic.service
 
 import android.accessibilityservice.AccessibilityService
+import android.app.ActivityOptions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import com.applock.magic.data.AppLockPreferences
 import com.applock.magic.data.LockStateManager
+import com.applock.magic.security.PipAndAudioGuard
 import com.applock.magic.ui.LockScreenActivity
 
 class AppLockAccessibilityService : AccessibilityService() {
 
     private lateinit var prefs: AppLockPreferences
+    private lateinit var pipAndAudioGuard: PipAndAudioGuard
     private var lastPackage: String = ""
     private var lastTriggerTime: Long = 0L
 
@@ -31,30 +36,40 @@ class AppLockAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         prefs = AppLockPreferences(this)
+        pipAndAudioGuard = PipAndAudioGuard(this, prefs)
+        pipAndAudioGuard.start()
 
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         registerReceiver(screenOffReceiver, filter)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (event == null) return
+
+        // 1. Multi-Window & Floating Window Überwachung (MagicOS Mini-Fenster)
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            checkFloatingWindows()
+            return
+        }
+
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val packageName = event.packageName?.toString() ?: return
 
-        // 1. Eigene App-Events ignorieren
+        // 2. Eigene App-Events ignorieren
         if (packageName == applicationContext.packageName) return
 
-        // 2. Transiente System-Fenster ignorieren (Tastaturen, SystemUI, Fingerabdruck-Dialog)
+        // 3. Transiente System-Fenster ignorieren (Tastaturen, SystemUI, Fingerabdruck-Dialog, Magic Portal)
         if (LockStateManager.isTransientPackage(packageName)) return
 
-        // 3. Wenn die App freigegeben ist: Auf keinen Fall sperren!
+        // 4. Wenn die App freigegeben ist: Auf keinen Fall sperren!
         if (!prefs.isPackageLocked(packageName)) {
             lastPackage = packageName
             prefs.handleAppSwitch(packageName)
             return
         }
 
-        // 4. Wenn der Sperrbildschirm bereits sichtbar ist:
+        // 5. Wenn der Sperrbildschirm bereits sichtbar ist:
         if (LockStateManager.isLockScreenShowing.get()) {
             // Wenn es dieselbe App ist, für die der Dialog bereits läuft: nichts tun
             if (LockStateManager.authenticatingPackage == packageName) return
@@ -66,14 +81,14 @@ class AppLockAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 5. Wenn bereits eine Authentifizierung für dieses Paket läuft, nicht erneut triggern
+        // 6. Wenn bereits eine Authentifizierung für dieses Paket läuft, nicht erneut triggern
         if (LockStateManager.authenticatingPackage == packageName) return
 
-        // 6. App-Wechsel an den State-Manager melden (prüft Re-Lock-Richtlinien)
+        // 7. App-Wechsel an den State-Manager melden (verwaltet UNLOCK_HANDOFF -> UNLOCKED_ACTIVE)
         prefs.handleAppSwitch(packageName)
         lastPackage = packageName
 
-        // 7. Prüfen, ob die gewechselte Ziel-App gesperrt ist
+        // 8. Prüfen, ob die gewechselte Ziel-App gesperrt ist
         if (prefs.isPackageLocked(packageName)) {
             val now = SystemClock.elapsedRealtime()
             // Debounce: Verhindert Mehrfachstarts bei schnellen Window-State-Schwankungen (unter 150ms)
@@ -81,6 +96,32 @@ class AppLockAccessibilityService : AccessibilityService() {
                 lastTriggerTime = now
                 LockStateManager.authenticatingPackage = packageName
                 triggerLock(packageName)
+            }
+        }
+    }
+
+    /**
+     * Scannt alle aktiven Fenster nach schwebenden Mini-Fenstern (Freeform / Multi-Window),
+     * damit gesperrte Apps im Kleinformat nicht die Vollbild-Erkennung umgehen.
+     */
+    private fun checkFloatingWindows() {
+        val winList = try {
+            windows
+        } catch (_: Exception) {
+            null
+        } ?: return
+
+        for (win in winList) {
+            if (win.type != AccessibilityWindowInfo.TYPE_APPLICATION) continue
+            val root = win.root ?: continue
+            val pkg = root.packageName?.toString() ?: continue
+
+            if (pkg != packageName && !LockStateManager.isTransientPackage(pkg) && prefs.isPackageLocked(pkg)) {
+                if (!LockStateManager.isLockScreenShowing.get() && LockStateManager.authenticatingPackage != pkg) {
+                    LockStateManager.authenticatingPackage = pkg
+                    triggerLock(pkg)
+                    break
+                }
             }
         }
     }
@@ -95,7 +136,15 @@ class AppLockAccessibilityService : AccessibilityService() {
                         Intent.FLAG_ACTIVITY_NO_ANIMATION
             )
         }
-        startActivity(lockIntent)
+
+        val options = ActivityOptions.makeBasic().apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                setPendingIntentBackgroundActivityStartMode(
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                )
+            }
+        }
+        startActivity(lockIntent, options.toBundle())
     }
 
     override fun onInterrupt() {
@@ -106,6 +155,9 @@ class AppLockAccessibilityService : AccessibilityService() {
         super.onDestroy()
         try {
             unregisterReceiver(screenOffReceiver)
+        } catch (_: Exception) {}
+        try {
+            pipAndAudioGuard.stop()
         } catch (_: Exception) {}
         LockStateManager.authenticatingPackage = null
     }

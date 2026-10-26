@@ -3,6 +3,7 @@ package com.applock.magic.ui
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +68,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = AppLockPreferences(this)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Verlässt die Activity und entfernt die Recents-Task-Karte (Zero-Recents-Footprint gegen MagicOS Task-Kills)
+                finishAndRemoveTask()
+            }
+        })
 
         setContent {
             HonorAppLockTheme {

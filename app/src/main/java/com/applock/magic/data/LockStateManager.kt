@@ -5,10 +5,23 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Zentraler, prozessweiter Zustandsmanager zur Vermeidung von Race Conditions,
- * Re-Launch-Schleifen ("Stuck zwischen Apps") und Deadlocks.
+ * Zentraler, prozessweiter Zustandsmanager mit deterministischer Handoff-State-Machine.
+ * Verhindert Re-Launch-Schleifen, Flatter-Starts und Deadlocks beim Multitasking.
  */
 object LockStateManager {
+
+    enum class SessionState {
+        LOCKED,
+        AUTHENTICATING,
+        UNLOCK_HANDOFF,   // Brücke zwischen Biometrie-Erfolg und Übernahme des Vordergrund-Fokus durch Ziel-App
+        UNLOCKED_ACTIVE   // App ist aktiv im Vordergrund und entsperrt
+    }
+
+    data class PackageSession(
+        val state: SessionState,
+        val timestamp: Long,
+        val expiryMs: Long // Long.MAX_VALUE bei Screen-Off-Policy, konkreter Zeitstempel bei Timeouts
+    )
 
     // Verhindert das mehrfache gleichzeitige Öffnen der LockScreenActivity
     val isLockScreenShowing = AtomicBoolean(false)
@@ -21,14 +34,13 @@ object LockStateManager {
     @Volatile
     var currentForegroundPackage: String? = null
 
-    // Temporäre Freigaben (Paketname -> Ablaufzeitpunkt in monotoner SystemClock.elapsedRealtime())
-    private val unlockedSessions = ConcurrentHashMap<String, Long>()
+    // Paketname -> Aktive Session
+    private val sessions = ConcurrentHashMap<String, PackageSession>()
 
-    // Zeitstempel der letzten erfolgreichen Entsperrung (zur Verhinderung von Re-Lock-Schleifen)
-    private val lastUnlockTimestamp = ConcurrentHashMap<String, Long>()
+    // Max. Dauer für den Activity-Übergang nach erfolgreicher Authentifizierung (Handoff-Toleranz)
+    private const val HANDOFF_TIMEOUT_MS = 2000L
 
-    // Whitelist von Systempaketen, die den Fokus kurzzeitig stehlen können,
-    // ohne dass die geschützte App als "verlassen" gilt (z. B. Tastaturen, SystemUI, Biometrie-Dialoge)
+    // Whitelist von Systempaketen (Tastaturen, SystemUI, Magic Portal, Biometrie-Dialoge)
     private val TRANSIENT_PACKAGES = setOf(
         "com.android.systemui",
         "android",
@@ -38,7 +50,9 @@ object LockStateManager {
         "com.hihonor.inputmethod",              // Honor Tastatur
         "com.android.permissioncontroller",
         "com.google.android.permissioncontroller",
-        "com.hihonor.android.internal.app"      // MagicOS Systemdialoge
+        "com.hihonor.android.internal.app",     // MagicOS Systemdialoge
+        "com.hihonor.magictouch",               // Honor Magic Portal / Kapsel
+        "com.hihonor.viewassistant"             // Honor Sidebar
     )
 
     // Bekannte Launcher / Home-Screens
@@ -61,49 +75,91 @@ object LockStateManager {
         return LAUNCHER_PACKAGES.contains(packageName)
     }
 
+    /**
+     * Prüft, ob das Paket temporär freigegeben ist.
+     */
     fun isTemporarilyUnlocked(packageName: String): Boolean {
-        val expiry = unlockedSessions[packageName] ?: return false
+        val session = sessions[packageName] ?: return false
         val now = SystemClock.elapsedRealtime()
-        if (now <= expiry) {
-            return true
+
+        return when (session.state) {
+            SessionState.UNLOCK_HANDOFF -> {
+                // Befindet sich im Handoff-Fenster: Sicher freigegeben
+                if (now - session.timestamp <= HANDOFF_TIMEOUT_MS) {
+                    true
+                } else {
+                    // Handoff abgelaufen ohne Fokus -> verfallen
+                    sessions.remove(packageName)
+                    false
+                }
+            }
+            SessionState.UNLOCKED_ACTIVE -> {
+                if (now <= session.expiryMs) {
+                    true
+                } else {
+                    sessions.remove(packageName)
+                    false
+                }
+            }
+            else -> false
         }
-        unlockedSessions.remove(packageName)
-        return false
     }
 
-    fun grantUnlock(packageName: String, durationMs: Long) {
+    /**
+     * Wird direkt nach erfolgreicher Authentifizierung aufgerufen.
+     * Setzt den Status auf UNLOCK_HANDOFF.
+     */
+    fun grantUnlockHandoff(packageName: String, expiryMs: Long) {
         val now = SystemClock.elapsedRealtime()
-        val expiry = when {
-            durationMs < 0 -> Long.MAX_VALUE // Gültig bis Display-Aus oder Neustart
-            durationMs == 0L -> now + 15_000L // Mindestens 15 Sekunden gegen Fensterwechsel-Flackern geschützt
-            else -> now + durationMs
-        }
-        unlockedSessions[packageName] = expiry
-        lastUnlockTimestamp[packageName] = now
+        sessions[packageName] = PackageSession(
+            state = SessionState.UNLOCK_HANDOFF,
+            timestamp = now,
+            expiryMs = expiryMs
+        )
         authenticatingPackage = null
     }
 
-    fun revokeUnlock(packageName: String, force: Boolean = false) {
-        val now = SystemClock.elapsedRealtime()
-        val unlockTime = lastUnlockTimestamp[packageName] ?: 0L
+    /**
+     * Meldet, dass eine Anwendung im Vordergrund fokussiert wurde.
+     * Verwaltet den deterministischen Übergang von UNLOCK_HANDOFF -> UNLOCKED_ACTIVE
+     * und das sofortige Sperren bei echtem App-Wechsel.
+     */
+    fun onPackageFocused(newPackage: String, lockPolicy: Int) {
+        if (isTransientPackage(newPackage)) return
 
-        // KERN-SCHUTZ GEGEN ENDLOSSCHLEIFEN:
-        // Wurde die App vor weniger als 8 Sekunden erfolgreich entsperrt,
-        // darf sie keinesfalls durch Window-Transition-Races sofort wieder gesperrt werden!
-        if (!force && (now - unlockTime < 8_000L)) {
-            return
+        val now = SystemClock.elapsedRealtime()
+        val previous = currentForegroundPackage
+        currentForegroundPackage = newPackage
+
+        // 1. Wenn wir zur soeben entsperrten App wechseln/zurückkehren:
+        val targetSession = sessions[newPackage]
+        if (targetSession != null && targetSession.state == SessionState.UNLOCK_HANDOFF) {
+            // Übergang perfekt vollzogen: Sofort scharf schalten auf UNLOCKED_ACTIVE
+            sessions[newPackage] = targetSession.copy(
+                state = SessionState.UNLOCKED_ACTIVE,
+                timestamp = now
+            )
         }
 
-        unlockedSessions.remove(packageName)
-        if (authenticatingPackage == packageName) {
-            authenticatingPackage = null
+        // 2. Vorherige Sessions prüfen, wenn der Nutzer zu einer anderen App/Launcher gewechselt ist:
+        if (previous != null && previous != newPackage) {
+            val prevSession = sessions[previous]
+            if (prevSession != null) {
+                if (lockPolicy == AppLockPreferences.POLICY_IMMEDIATE) {
+                    // Sofort sperren: Freigabe der verlassenen App sofort entziehen
+                    // (außer sie befindet sich noch im aktiven Handoff-Bruchteil < 2s)
+                    if (prevSession.state != SessionState.UNLOCK_HANDOFF || (now - prevSession.timestamp > HANDOFF_TIMEOUT_MS)) {
+                        sessions.remove(previous)
+                    }
+                }
+            }
         }
     }
 
     fun lockAllImmediately() {
-        unlockedSessions.clear()
-        lastUnlockTimestamp.clear()
+        sessions.clear()
         authenticatingPackage = null
         currentForegroundPackage = null
+        isLockScreenShowing.set(false)
     }
 }
