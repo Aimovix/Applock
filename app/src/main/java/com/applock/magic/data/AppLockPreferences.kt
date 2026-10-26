@@ -14,8 +14,8 @@ class AppLockPreferences(context: Context) {
         private const val KEY_LOCK_POLICY = "lock_policy_type"
 
         // Sperr-Richtlinien
-        const val POLICY_IMMEDIATE = 0      // Sofort bei App-Wechsel / Verlassen sperren
-        const val POLICY_SCREEN_OFF = 1     // Erst sperren, wenn das Display ausgeschaltet wird
+        const val POLICY_SCREEN_OFF = 0     // Standard & Empfohlen: Bleibt aktiv, bis das Display ausgeschaltet wird
+        const val POLICY_IMMEDIATE = 1      // Sofort bei App-Wechsel / Verlassen sperren
         const val POLICY_TIMEOUT_1MIN = 2   // 1 Minute Gnadenfrist nach Entsperrung
         const val POLICY_TIMEOUT_5MIN = 3   // 5 Minuten Gnadenfrist nach Entsperrung
 
@@ -63,11 +63,11 @@ class AppLockPreferences(context: Context) {
 
     fun unlockPackageTemporarily(packageName: String) {
         val timeoutMs = when (getLockPolicy()) {
-            POLICY_IMMEDIATE -> 0L // Bleibt aktiv, solange die App im Vordergrund ist; wird beim Verlassen widerrufen
             POLICY_SCREEN_OFF -> -1L // Bleibt aktiv bis Display-Aus
+            POLICY_IMMEDIATE -> 0L  // Bleibt aktiv solange im Vordergrund (mit 15s Mindestschutz)
             POLICY_TIMEOUT_1MIN -> 60_000L
             POLICY_TIMEOUT_5MIN -> 300_000L
-            else -> 0L
+            else -> -1L
         }
         LockStateManager.grantUnlock(packageName, timeoutMs)
     }
@@ -75,9 +75,10 @@ class AppLockPreferences(context: Context) {
     fun handleAppSwitch(newPackage: String) {
         val previous = LockStateManager.currentForegroundPackage
         if (previous != null && previous != newPackage && !LockStateManager.isTransientPackage(newPackage)) {
-            // Wenn die Richtlinie "Sofort sperren" ist, verfällt die Freigabe der verlassenen App sofort
+            // Wenn die Richtlinie "Sofort sperren" ist, verfällt die Freigabe der verlassenen App,
+            // sofern sie nicht gerade eben (unter 8s) entsperrt wurde
             if (getLockPolicy() == POLICY_IMMEDIATE && getLockedPackages().contains(previous)) {
-                LockStateManager.revokeUnlock(previous)
+                LockStateManager.revokeUnlock(previous, force = false)
             }
         }
         if (!LockStateManager.isTransientPackage(newPackage)) {
@@ -90,7 +91,7 @@ class AppLockPreferences(context: Context) {
     }
 
     fun getLockPolicy(): Int {
-        return prefs.getInt(KEY_LOCK_POLICY, POLICY_IMMEDIATE)
+        return prefs.getInt(KEY_LOCK_POLICY, POLICY_SCREEN_OFF)
     }
 
     fun setLockPolicy(policy: Int) {

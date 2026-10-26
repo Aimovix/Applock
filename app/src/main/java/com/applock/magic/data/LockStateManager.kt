@@ -1,6 +1,5 @@
 package com.applock.magic.data
 
-import android.content.Context
 import android.os.SystemClock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -24,6 +23,9 @@ object LockStateManager {
 
     // Temporäre Freigaben (Paketname -> Ablaufzeitpunkt in monotoner SystemClock.elapsedRealtime())
     private val unlockedSessions = ConcurrentHashMap<String, Long>()
+
+    // Zeitstempel der letzten erfolgreichen Entsperrung (zur Verhinderung von Re-Lock-Schleifen)
+    private val lastUnlockTimestamp = ConcurrentHashMap<String, Long>()
 
     // Whitelist von Systempaketen, die den Fokus kurzzeitig stehlen können,
     // ohne dass die geschützte App als "verlassen" gilt (z. B. Tastaturen, SystemUI, Biometrie-Dialoge)
@@ -70,16 +72,28 @@ object LockStateManager {
     }
 
     fun grantUnlock(packageName: String, durationMs: Long) {
-        val expiry = if (durationMs <= 0) {
-            Long.MAX_VALUE // Gültig bis Display-Aus oder explizites Sperren
-        } else {
-            SystemClock.elapsedRealtime() + durationMs
+        val now = SystemClock.elapsedRealtime()
+        val expiry = when {
+            durationMs < 0 -> Long.MAX_VALUE // Gültig bis Display-Aus oder Neustart
+            durationMs == 0L -> now + 15_000L // Mindestens 15 Sekunden gegen Fensterwechsel-Flackern geschützt
+            else -> now + durationMs
         }
         unlockedSessions[packageName] = expiry
+        lastUnlockTimestamp[packageName] = now
         authenticatingPackage = null
     }
 
-    fun revokeUnlock(packageName: String) {
+    fun revokeUnlock(packageName: String, force: Boolean = false) {
+        val now = SystemClock.elapsedRealtime()
+        val unlockTime = lastUnlockTimestamp[packageName] ?: 0L
+
+        // KERN-SCHUTZ GEGEN ENDLOSSCHLEIFEN:
+        // Wurde die App vor weniger als 8 Sekunden erfolgreich entsperrt,
+        // darf sie keinesfalls durch Window-Transition-Races sofort wieder gesperrt werden!
+        if (!force && (now - unlockTime < 8_000L)) {
+            return
+        }
+
         unlockedSessions.remove(packageName)
         if (authenticatingPackage == packageName) {
             authenticatingPackage = null
@@ -88,6 +102,7 @@ object LockStateManager {
 
     fun lockAllImmediately() {
         unlockedSessions.clear()
+        lastUnlockTimestamp.clear()
         authenticatingPackage = null
         currentForegroundPackage = null
     }

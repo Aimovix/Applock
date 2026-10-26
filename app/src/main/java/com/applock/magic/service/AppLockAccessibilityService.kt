@@ -47,15 +47,19 @@ class AppLockAccessibilityService : AccessibilityService() {
         // 2. Transiente System-Fenster ignorieren (Tastaturen, SystemUI, Fingerabdruck-Dialog)
         if (LockStateManager.isTransientPackage(packageName)) return
 
-        // 3. DEADLOCK-VERHINDERUNG ("Stuck zwischen Apps"):
+        // 3. Wenn die App freigegeben ist: Auf keinen Fall sperren!
+        if (!prefs.isPackageLocked(packageName)) {
+            lastPackage = packageName
+            prefs.handleAppSwitch(packageName)
+            return
+        }
+
+        // 4. DEADLOCK- & SCHLEIFEN-VERHINDERUNG:
         // Wenn der Sperrbildschirm bereits sichtbar ist, KEINE neue Instanz starten!
         if (LockStateManager.isLockScreenShowing.get()) return
 
-        // 4. Wenn bereits eine Authentifizierung für dieses Paket läuft, nicht erneut triggern
+        // 5. Wenn bereits eine Authentifizierung für dieses Paket läuft, nicht erneut triggern
         if (LockStateManager.authenticatingPackage == packageName) return
-
-        // 5. Wenn sich das Paket nicht geändert hat und die App freigegeben ist, überspringen
-        if (packageName == lastPackage && !prefs.isPackageLocked(packageName)) return
 
         // 6. App-Wechsel an den State-Manager melden (prüft Re-Lock-Richtlinien)
         prefs.handleAppSwitch(packageName)
@@ -64,8 +68,8 @@ class AppLockAccessibilityService : AccessibilityService() {
         // 7. Prüfen, ob die gewechselte Ziel-App gesperrt ist
         if (prefs.isPackageLocked(packageName)) {
             val now = SystemClock.elapsedRealtime()
-            // Debounce: Verhindert Mehrfachstarts bei schnellen Window-State-Schwankungen (unter 150ms)
-            if (now - lastTriggerTime > 150L) {
+            // Debounce: Verhindert Mehrfachstarts bei schnellen Window-State-Schwankungen (unter 200ms)
+            if (now - lastTriggerTime > 200L) {
                 lastTriggerTime = now
                 LockStateManager.authenticatingPackage = packageName
                 triggerLock(packageName)
