@@ -2,123 +2,57 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Screen Overlay (Zeichnen über andere Apps) -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <!-- App-Nutzungsstatistiken (Fallback-Erkennung) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- Biometrische Authentifizierung (Fingerabdruck / 3D-Gesicht) -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-
-    <!-- Hintergrunddienste für Android 14+ -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Autostart nach Geräteneustart -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- Akku-Optimierung umgehen für MagicOS Stabilität -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-
-    <!-- Installierte Apps auflisten -->
-    <uses-permission
-        android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
+    <!-- Play-Policy-compliant query declaration to list launchable installed apps -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Applock">
+        android:theme="@style/Theme.MyApplication">
 
-        <!-- Haupt-Dashboard & Berechtigungs-Setup -->
         <activity
-            android:name=".ui.MainActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:label="@string/app_name">
-
-            <!-- Ermöglicht das Starten über den "Öffnen"-Button in den Android-Einstellungen -> Apps -> Applock -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.INFO" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-
-            <!-- Menüeintrag "Zusätzliche Einstellungen in der App" in den Android-Einstellungen -->
-            <intent-filter>
-                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-
-            <!-- Deep-Link zum Öffnen über Browser oder HTML-Datei in "Dateien" (applock://open) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="applock" android:host="open" />
-            </intent-filter>
-
-            <!-- Öffnen aus dem Dateimanager ("Dateien"-App) über Trigger-Dateien (.applock) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="content" />
-                <data android:mimeType="*/*" />
-                <data android:host="*" />
-                <data android:pathPattern=".*\\.applock" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="file" />
-                <data android:mimeType="*/*" />
-                <data android:host="*" />
-                <data android:pathPattern=".*\\.applock" />
-            </intent-filter>
-        </activity>
-
-        <!-- Das Launcher-Icon liegt in diesem Alias. Wird dieser Alias deaktiviert, verschwindet die App vom Startbildschirm/Launcher, bleibt aber installiert! -->
-        <activity-alias
-            android:name=".ui.LauncherAlias"
-            android:targetActivity=".ui.MainActivity"
-            android:enabled="true"
+            android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:icon="@mipmap/ic_launcher"
-            android:roundIcon="@mipmap/ic_launcher_round">
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity-alias>
+        </activity>
 
-        <!-- Sperr-Overlay-Activity: Task-isoliert mit singleTask und solidem Theme gegen Bildschirminhalt-Leaks -->
+        <!-- Dedicated SingleTop Lock Gate Activity with anti-loop flags -->
         <activity
-            android:name=".ui.LockScreenActivity"
-            android:directBootAware="true"
+            android:name=".ui.lockgate.LockOverlayGateActivity"
             android:excludeFromRecents="true"
-            android:noHistory="true"
             android:exported="false"
-            android:launchMode="singleTask"
-            android:resizeableActivity="false"
-            android:taskAffinity="com.applock.magic.lockscreen"
-            android:windowSoftInputMode="stateAlwaysHidden"
-            android:theme="@style/Theme.Applock" />
+            android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.MyApplication" />
 
-        <!-- Zero-Latency Barrierefreiheitsdienst (Echtzeit-Erkennung von App-Wechseln) -->
+        <!-- Event-driven Foreground App Watcher Service -->
         <service
             android:name=".service.AppLockAccessibilityService"
-            android:directBootAware="true"
             android:exported="false"
+            android:label="@string/app_name"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -127,60 +61,6 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
-
-        <!-- Persistenter Foreground Service (Hintergrund-Wächter & Keep-Alive) -->
-        <service
-            android:name=".service.AppLockForegroundService"
-            android:directBootAware="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="app_lock_protection" />
-        </service>
-
-        <!-- Boot-Receiver für sofortigen Schutz nach Neustart (auch vor der ersten PIN-Eingabe) -->
-        <receiver
-            android:name=".service.BootReceiver"
-            android:directBootAware="true"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Geräteadministrator (Deinstallationsschutz) -->
-        <receiver
-            android:name=".receiver.AppLockDeviceAdminReceiver"
-            android:description="@string/device_admin_desc"
-            android:label="@string/device_admin_label"
-            android:permission="android.permission.BIND_DEVICE_ADMIN"
-            android:exported="true">
-            <meta-data
-                android:name="android.app.device_admin"
-                android:resource="@xml/device_admin_policy" />
-            <intent-filter>
-                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
-                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
-                <action android:name="android.app.action.DEVICE_ADMIN_DISABLE_REQUESTED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Notfall-Wählcode-Receiver (*#*#744353#*#*) zum Öffnen im Stealth-Modus -->
-        <receiver
-            android:name=".receiver.SecretCodeReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android_secret_code" />
-                <action android:name="android.telephony.action.SECRET_CODE" />
-                <action android:name="android.provider.Telephony.SECRET_CODE" />
-                <data android:scheme="android_secret_code" android:host="744353" />
-            </intent-filter>
-        </receiver>
-
     </application>
 
 </manifest>

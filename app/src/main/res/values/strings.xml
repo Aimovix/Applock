@@ -1,21 +1,14 @@
 <resources>
-    <string name="app_name">Applock</string>
-    <string name="accessibility_service_desc">Erkennt blitzschnell den Wechsel von Apps, um geschützte Anwendungen mit Biometrie (Fingerabdruck / 3D-Gesicht) zu sichern.</string>
-    <string name="notification_channel_name">AppLock Schutzdienst</string>
-    <string name="notification_channel_desc">Hält den Schutzdienst aktiv und verhindert das Beenden durch das System.</string>
-    <string name="notification_title">Echtzeit-Schutz aktiv</string>
-    <string name="notification_text">Apps sind durch Hardware-Biometrie geschützt</string>
-    
-    <string name="biometric_title">App entsperren</string>
-    <string name="biometric_subtitle">Authentifizierung erforderlich: Diese Umgebung enthält extrem sensible und private Inhalte.</string>
-    <string name="biometric_cancel">Abbrechen</string>
-
-    <string name="device_admin_label">Applock Deinstallationsschutz</string>
-    <string name="device_admin_desc">Verhindert die unbefugte Deinstallation oder das Erzwingen des Beendens der Schutz-App.</string>
-
-    <string name="lock_screen_title">Geschützter Bereich</string>
-    <string name="lock_screen_subtitle">Authentifizierung erforderlich: Diese Umgebung enthält extrem sensible, persönliche und private Inhalte.</string>
-    <string name="lock_screen_subtitle_with_app">Authentifizierung erforderlich: %1$s enthält extrem sensible, persönliche und private Inhalte.</string>
-    <string name="lock_screen_unlock_btn">Jetzt per Fingerabdruck entsperren</string>
-    <string name="lock_screen_home_btn">Zurück zum Startbildschirm</string>
+    <string name="app_name">AppLock</string>
+    <string name="accessibility_service_description">Erkennt den Start gesperrter Apps lokal auf dem Gerät, um das PIN- und Biometrie-Schutzschild ohne Verzögerung anzuzeigen. Es werden keinerlei Bildschirminhalte gelesen oder übertragen.</string>
+    <string name="nav_vault">App-Tresor</string>
+    <string name="nav_profiles">Profile</string>
+    <string name="nav_logs">Sicherheits-Log</string>
+    <string name="nav_settings">Sicherheit</string>
+    <string name="hero_protection_active">Echtzeit-Schutz Aktiv</string>
+    <string name="hero_protection_paused">Schutz Pausiert</string>
+    <string name="test_lock_gate">Sperrbildschirm testen</string>
+    <string name="search_apps_hint">Apps oder Paketnamen suchen…</string>
+    <string name="unlock_with_biometric">Fingerabdruck scannen</string>
+    <string name="exit_to_home">Abbrechen &amp; zum Startbildschirm</string>
 </resources>

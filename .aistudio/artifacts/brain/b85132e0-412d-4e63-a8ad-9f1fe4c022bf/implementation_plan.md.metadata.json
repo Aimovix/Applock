@@ -1,0 +1,6 @@
+{
+  "summary":  "Aktualisierter Implementierungsplan für AppLock mit explizitem Anti-Endlosschleifen-Schutz (One-Shot Biometric Guard, SystemUI/Biometric-Whitelist, Session-Unlock-Tokens und Debounce-State-Machine) gegen dauerhaft aufpoppende Fingerabdruck-Dialoge.",
+  "updatedAt":  "2026-10-28T23:05:45.520638800Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

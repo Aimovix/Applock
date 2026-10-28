@@ -1,0 +1,6 @@
+{
+  "name": "AppLock",
+  "description": "Modernisierte On-Device App-Sperre mit Material 3, Anti-Loop Biometrie-Schutz, Sicherheitsprofilen und PIN-Tresor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

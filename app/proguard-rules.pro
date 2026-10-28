@@ -1,13 +1,21 @@
-# AndroidX Biometric & Keystore
--keepclassmembers class * extends androidx.biometric.BiometricPrompt { *; }
--keep class androidx.biometric.** { *; }
--keep class com.applock.magic.security.** { *; }
--keep class com.applock.magic.service.** { *; }
--keep class com.applock.magic.data.** { *; }
--keep class com.applock.magic.overlay.** { *; }
--keep class com.applock.magic.ui.** { *; }
--keep class com.applock.magic.receiver.** { *; }
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Compose Keep Rules
--keep class androidx.compose.material3.** { *; }
--dontwarn androidx.compose.**
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
+
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
+
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile
