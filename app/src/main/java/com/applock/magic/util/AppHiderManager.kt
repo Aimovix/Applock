@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.widget.Toast
 import com.applock.magic.data.AppLockPreferences
-import com.applock.magic.receiver.ShieldLockDeviceAdminReceiver
+import com.applock.magic.receiver.AppLockDeviceAdminReceiver
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -21,7 +21,7 @@ enum class HiderEngineMode {
 object AppHiderManager {
 
     const val ADB_DEVICE_OWNER_COMMAND =
-        "adb shell dpm set-device-owner com.applock.magic/.receiver.ShieldLockDeviceAdminReceiver"
+        "adb shell dpm set-device-owner com.applock.magic/.receiver.AppLockDeviceAdminReceiver"
 
     fun getEngineMode(context: Context): HiderEngineMode {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -61,7 +61,7 @@ object AppHiderManager {
         hide: Boolean
     ): Result<Boolean> {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val admin = ComponentName(context, ShieldLockDeviceAdminReceiver::class.java)
+        val admin = ComponentName(context, AppLockDeviceAdminReceiver::class.java)
 
         // 1. Device Owner API (Offizieller Android Enterprise Standard)
         if (dpm.isDeviceOwnerApp(context.packageName) || dpm.isProfileOwnerApp(context.packageName)) {
@@ -104,7 +104,7 @@ object AppHiderManager {
 
     fun copyAdbCommandToClipboard(context: Context) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("ShieldLock Device Owner Command", ADB_DEVICE_OWNER_COMMAND)
+        val clip = ClipData.newPlainText("Applock Device Owner Command", ADB_DEVICE_OWNER_COMMAND)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "ADB-Befehl in Zwischenablage kopiert!", Toast.LENGTH_SHORT).show()
     }

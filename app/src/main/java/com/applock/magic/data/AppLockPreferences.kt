@@ -10,6 +10,9 @@ class AppLockPreferences(context: Context) {
     private val storageContext: Context = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         val dps = context.createDeviceProtectedStorageContext()
         try {
+            dps.moveSharedPreferencesFrom(context, "app_lock_prefs")
+        } catch (_: Exception) {}
+        try {
             dps.moveSharedPreferencesFrom(context, "shield_lock_prefs")
         } catch (_: Exception) {}
         dps
@@ -18,7 +21,7 @@ class AppLockPreferences(context: Context) {
     }
 
     private val prefs: SharedPreferences =
-        storageContext.getSharedPreferences("shield_lock_prefs", Context.MODE_PRIVATE)
+        storageContext.getSharedPreferences("app_lock_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_LOCKED_PACKAGES = "locked_packages"

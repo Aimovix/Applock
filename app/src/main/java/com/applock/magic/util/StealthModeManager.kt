@@ -13,8 +13,8 @@ import java.io.FileOutputStream
 object StealthModeManager {
 
     private const val ALIAS_CLASS_NAME = "com.applock.magic.ui.LauncherAlias"
-    const val TRIGGER_FILE_HTML = "ShieldLock_Oeffnen.html"
-    const val TRIGGER_FILE_CUSTOM = "ShieldLock_Oeffnen.shieldlock"
+    const val TRIGGER_FILE_HTML = "Applock_Oeffnen.html"
+    const val TRIGGER_FILE_CUSTOM = "Applock_Oeffnen.applock"
 
     fun isStealthModeActive(context: Context): Boolean {
         return try {
@@ -54,7 +54,7 @@ object StealthModeManager {
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>ShieldLock Pro Öffnen</title>
+                <title>Applock Öffnen</title>
                 <style>
                     body {
                         background-color: #0f172a;
@@ -105,7 +105,7 @@ object StealthModeManager {
                 <script>
                     window.onload = function() {
                         setTimeout(function() {
-                            window.location.href = "shieldlock://open";
+                            window.location.href = "applock://open";
                         }, 250);
                     };
                 </script>
@@ -113,12 +113,12 @@ object StealthModeManager {
             <body>
                 <div class="card">
                     <div class="icon">🛡️</div>
-                    <h1>ShieldLock Pro</h1>
+                    <h1>Applock</h1>
                     <p>Die App befindet sich im unsichtbaren Stealth-Modus.<br>Tippe auf den Button, um das Sicherheits-Dashboard zu öffnen:</p>
-                    <a class="btn" href="shieldlock://open">ShieldLock Pro starten</a>
+                    <a class="btn" href="applock://open">Applock starten</a>
                     <div class="footer">
                         <b>Alternative Wege zum Öffnen:</b><br>
-                        • <b>Einstellungen:</b> Android-Einstellungen ➔ Apps ➔ ShieldLock Pro ➔ Öffnen<br>
+                        • <b>Einstellungen:</b> Android-Einstellungen ➔ Apps ➔ Applock ➔ Öffnen<br>
                         • <b>Telefon-Tastatur:</b> Code <b>*#*#744353#*#*</b> wählen
                     </div>
                 </div>
@@ -126,7 +126,7 @@ object StealthModeManager {
             </html>
         """.trimIndent()
 
-        val customFileContent = "SHIELDLOCK_PRO_TRIGGER\nscheme=shieldlock://open\n"
+        val customFileContent = "APPLOCK_TRIGGER\nscheme=applock://open\n"
 
         val ok1 = writeDownloadFile(context, TRIGGER_FILE_HTML, "text/html", htmlContent.toByteArray(Charsets.UTF_8))
         val ok2 = writeDownloadFile(context, TRIGGER_FILE_CUSTOM, "application/octet-stream", customFileContent.toByteArray(Charsets.UTF_8))

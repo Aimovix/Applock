@@ -10,5 +10,5 @@
 app/build/
 
 # Ausdrücklich die Release- und Debug-APKs für das Repository einbinden
-!ShieldLockPro-release.apk
-!ShieldLockPro-debug.apk
+!Applock-release.apk
+!Applock-debug.apk

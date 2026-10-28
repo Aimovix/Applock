@@ -66,7 +66,7 @@ import androidx.compose.ui.unit.sp
 import com.applock.magic.data.AppLockPreferences
 import com.applock.magic.data.InstalledApp
 import com.applock.magic.service.AppLockForegroundService
-import com.applock.magic.ui.theme.HonorAppLockTheme
+import com.applock.magic.ui.theme.ApplockTheme
 import com.applock.magic.ui.theme.SecurityAccent
 import com.applock.magic.ui.theme.SecurityDarkBackground
 import com.applock.magic.ui.theme.SecuritySuccess
@@ -101,7 +101,7 @@ class MainActivity : ComponentActivity() {
         })
 
         setContent {
-            HonorAppLockTheme {
+            ApplockTheme {
                 MainScreen(prefs = prefs, refreshTrigger = refreshTrigger.value)
             }
         }
@@ -205,10 +205,10 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
             text = {
                 Column {
                     Text(
-                        text = "ShieldLock Pro wird aus dem Startbildschirm und App-Drawer ausgeblendet. Der Schutz bleibt voll aktiv.\n\n" +
+                        text = "Applock wird aus dem Startbildschirm und App-Drawer ausgeblendet. Der Schutz bleibt voll aktiv.\n\n" +
                                 "Du kannst die App danach jederzeit öffnen über:\n" +
-                                "• Dateien ➔ Downloads ➔ 'ShieldLock_Oeffnen.html'\n" +
-                                "• Einstellungen ➔ Apps ➔ ShieldLock Pro ➔ 'Öffnen'\n" +
+                                "• Dateien ➔ Downloads ➔ 'Applock_Oeffnen.html'\n" +
+                                "• Einstellungen ➔ Apps ➔ Applock ➔ 'Öffnen'\n" +
                                 "• Telefon-Tastenfeld: *#*#744353#*#*\n\n" +
                                 "Möchtest du das Symbol jetzt ausblenden?",
                         color = SecurityTextSecondary,
@@ -273,7 +273,7 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
             item {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "ShieldLock Pro",
+                    text = "Applock",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = SecurityTextPrimary
@@ -445,7 +445,7 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                             )
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Schalter: Stealth Mode (ShieldLock Pro Symbol verbergen)
+                            // Schalter: Stealth Mode (Applock Symbol verbergen)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -460,7 +460,7 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Entfernt ShieldLock Pro komplett vom Startbildschirm/Launcher. Nicht deinstalliert – bleibt im Hintergrund aktiv!",
+                                        text = "Entfernt Applock komplett vom Startbildschirm/Launcher. Nicht deinstalliert – bleibt im Hintergrund aktiv!",
                                         fontSize = 12.sp,
                                         color = SecurityTextSecondary,
                                         lineHeight = 16.sp
@@ -496,15 +496,15 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
                                         Text(
-                                            text = "So öffnest du ShieldLock Pro im Stealth-Modus:",
+                                            text = "So öffnest du Applock im Stealth-Modus:",
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = SecurityAccent
                                         )
                                         Spacer(modifier = Modifier.height(6.dp))
                                         Text(
-                                            text = "1. In 'Dateien' (Downloads): 'ShieldLock_Oeffnen.html' antippen\n" +
-                                                    "2. In den Android-Einstellungen: Apps ➔ ShieldLock Pro ➔ Öffnen\n" +
+                                            text = "1. In 'Dateien' (Downloads): 'Applock_Oeffnen.html' antippen\n" +
+                                                    "2. In den Android-Einstellungen: Apps ➔ Applock ➔ Öffnen\n" +
                                                     "3. Im Telefon-Wählfeld: *#*#744353#*#* anrufen",
                                             fontSize = 12.sp,
                                             color = SecurityTextPrimary,
@@ -520,7 +520,7 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                                                     val created = StealthModeManager.createTriggerFiles(context)
                                                     Toast.makeText(
                                                         context,
-                                                        if (created) "Trigger-Datei 'ShieldLock_Oeffnen.html' in Downloads erstellt!" else "Fehler beim Erstellen",
+                                                        if (created) "Trigger-Datei 'Applock_Oeffnen.html' in Downloads erstellt!" else "Fehler beim Erstellen",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
                                                 },
@@ -603,7 +603,7 @@ fun MainScreen(prefs: AppLockPreferences, refreshTrigger: Int) {
                                 Text(
                                     text = "Damit MagicOS den Dienst nicht im Hintergrund beendet:\n" +
                                             "1. 'App-Start' öffnen\n" +
-                                            "2. 'Automatisch verwalten' für ShieldLock deaktivieren\n" +
+                                            "2. 'Automatisch verwalten' für Applock deaktivieren\n" +
                                             "3. Alle drei Schalter (Auto-Start, Sekundärer Start, Hintergrund) einschalten.",
                                     fontSize = 13.sp,
                                     color = SecurityTextSecondary,
@@ -1467,7 +1467,7 @@ fun HiderHelpDialog(onDismiss: () -> Unit, onCopyCommand: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Installiere 'Shizuku' und starte es über Kabelloses Debugging direkt auf deinem Handy. ShieldLock Pro kann dann pm disable-user ausführen.",
+                            text = "Installiere 'Shizuku' und starte es über Kabelloses Debugging direkt auf deinem Handy. Applock kann dann pm disable-user ausführen.",
                             fontSize = 12.sp,
                             color = SecurityTextSecondary,
                             lineHeight = 16.sp

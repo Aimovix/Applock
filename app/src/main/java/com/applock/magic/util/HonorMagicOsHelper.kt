@@ -75,7 +75,7 @@ object HonorMagicOsHelper {
         return listOf(
             "1. MagicOS App-Start: 'Automatisch verwalten' DEAKTIVIEREN.",
             "2. 'Auto-Start', 'Sekundärer Start' und 'Im Hintergrund ausführen' AKTIVIEREN.",
-            "3. Task-Manager (Recent Apps): Wische die ShieldLock-Karte leicht nach unten, bis das Schloss-Symbol erscheint.",
+            "3. Task-Manager (Recent Apps): Wische die Applock-Karte leicht nach unten, bis das Schloss-Symbol erscheint.",
             "4. Bei manuell installierter APK: In den Android App-Infos oben rechts auf die 3 Punkte tippen -> 'Eingeschränkte Einstellungen zulassen'."
         )
     }

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HonorAppLock"
+rootProject.name = "Applock"
 include(":app")

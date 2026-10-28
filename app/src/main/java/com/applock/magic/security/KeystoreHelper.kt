@@ -11,7 +11,7 @@ import javax.crypto.SecretKey
 object KeystoreHelper {
 
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
-    private const val KEY_ALIAS = "ShieldLockBiometricMasterKey"
+    private const val KEY_ALIAS = "AppLockBiometricMasterKey"
     private const val TRANSFORMATION = "${KeyProperties.KEY_ALGORITHM_AES}/${KeyProperties.BLOCK_MODE_GCM}/${KeyProperties.ENCRYPTION_PADDING_NONE}"
 
     fun getOrCreateSecretKey(): SecretKey {

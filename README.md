@@ -1,6 +1,6 @@
-# 🛡️ ShieldLock Pro - Hardware Biometric AppLock für Android 14/15/17 & Honor MagicOS
+# 🛡️ Applock - Hardware Biometric AppLock für Android 14/15/17 & Honor MagicOS
 
-**ShieldLock Pro** ist ein hochperformantes, modulares Android-Sicherheits- und AppLock-System. Es wurde speziell für moderne Android-Sicherheitsarchitekturen (Android 14/15/17, API 35+) und Flaggschiff-Geräte mit hardwarebasierten Sensoren wie das **Honor Magic 8 Pro** (MagicOS 8/9/11, Firmware `11.0.0.130(C431)`) entwickelt.
+**Applock** ist ein hochperformantes, modulares Android-Sicherheits- und AppLock-System. Es wurde speziell für moderne Android-Sicherheitsarchitekturen (Android 14/15/17, API 35+) und Flaggschiff-Geräte mit hardwarebasierten Sensoren wie das **Honor Magic 8 Pro** (MagicOS 8/9/11, Firmware `11.0.0.130(C431)`) entwickelt.
 
 ---
 
@@ -10,8 +10,8 @@ Im Stammverzeichnis dieses Repositories befinden sich die aktuellsten, fertig vo
 
 | Datei | Build-Typ | Dateigröße | Beschreibung & Empfehlung |
 | :--- | :--- | :--- | :--- |
-| **[ShieldLockPro-release.apk](ShieldLockPro-release.apk)** | **Release** | **~2,9 MB** | **Empfohlen (Flüssigste Version):** Vollständige R8-Minification, Resource-Shrinking und vorkompilierte ART-Profile. Reagiert mit 0 ms Latenz ohne Ruckler beim App-Wechsel. |
-| **[ShieldLockPro-debug.apk](ShieldLockPro-debug.apk)** | **Debug** | **~11,8 MB** | Enthält unkomprimierte Symbole, Compose-Recomposition-Tracking und ausführliche Logs für Entwickler. |
+| **[Applock-release.apk](Applock-release.apk)** | **Release** | **~2,9 MB** | **Empfohlen (Flüssigste Version):** Vollständige R8-Minification, Resource-Shrinking und vorkompilierte ART-Profile. Reagiert mit 0 ms Latenz ohne Ruckler beim App-Wechsel. |
+| **[Applock-debug.apk](Applock-debug.apk)** | **Debug** | **~11,8 MB** | Enthält unkomprimierte Symbole, Compose-Recomposition-Tracking und ausführliche Logs für Entwickler. |
 
 ---
 
@@ -44,10 +44,10 @@ Mit dem dedizierten Tab **„👻 Verstecken“** können installierte Anwendung
 * **Wo ist die App noch auffindbar?**
   1. In **Android-Einstellungen ➔ Apps ➔ Alle Apps** (dort als „Deaktiviert“ bzw. „Ausgeblendet“ aufgeführt).
   2. Im **Dateimanager / Dateien-App** (App-Daten, Caches und Konten bleiben vollständig unberührt).
-* **Freischaltung:** Android verbietet Drittanbieter-Apps standardmäßig, fremde Apps ohne Freigabe aus dem Launcher zu entfernen, um Missbrauch zu verhindern. ShieldLock Pro unterstützt vier Freischaltungs-Wege:
+* **Freischaltung:** Android verbietet Drittanbieter-Apps standardmäßig, fremde Apps ohne Freigabe aus dem Launcher zu entfernen, um Missbrauch zu verhindern. Applock unterstützt vier Freischaltungs-Wege:
   1. **Device-Owner (Empfohlen / Einmalig per PC/Mac):**  
      ```bash
-     adb shell dpm set-device-owner com.applock.magic/.receiver.ShieldLockDeviceAdminReceiver
+     adb shell dpm set-device-owner com.applock.magic/.receiver.AppLockDeviceAdminReceiver
      ```
      *Ermöglicht das sofortige, native Verstecken und Wiederherstellen über die offizielle Android-API `DevicePolicyManager.setApplicationHidden`.*
   2. **Ohne PC per Shizuku / WLAN-Debugging:**  
@@ -61,31 +61,31 @@ Mit dem dedizierten Tab **„👻 Verstecken“** können installierte Anwendung
 
 ## 🎭 App-Tarnung & Icon-Changer
 
-In ShieldLock Pro gibt es den dedizierten Tab **„🎭 Icon Changer“**:
+In Applock gibt es den dedizierten Tab **„🎭 Icon Changer“**:
 1. **Beliebige App auswählen:** Suche jede installierte oder geschützte App (z. B. WhatsApp, Instagram, Galerie, Banking).
 2. **Eigenes Foto oder Tarn-Vorlage wählen:**
    - **Aus Galerie / Fotos / Dateien:** Wähle ein beliebiges Bild von deinem Smartphone. Es wird automatisch als scharfes Squircle-Icon aufbereitet.
    - **Tarn-Vorlagen:** 8 vorinstallierte Vektor-Icons (*Rechner, Notizen, Wetter, Uhr, Kamera, Kompass, Musik, Dateien*).
 3. **Name frei anpassen:** Ändere z. B. „WhatsApp“ zu „Rechner“ oder „Notizblock“.
-4. **Zum Startbildschirm hinzufügen:** Platziert über `ShortcutManager.requestPinShortcut` eine Verknüpfung direkt auf deinem MagicOS Startbildschirm. Tippt man darauf, öffnet sich die App getarnt und wird direkt durch ShieldLock Pro geschützt.
+4. **Zum Startbildschirm hinzufügen:** Platziert über `ShortcutManager.requestPinShortcut` eine Verknüpfung direkt auf deinem MagicOS Startbildschirm. Tippt man darauf, öffnet sich die App getarnt und wird direkt durch Applock geschützt.
 5. **Für Sperrmaske speichern:** Das gewählte Icon und der Tarn-Name werden auch auf der Sperrmaske angezeigt.
 
 ---
 
 ## 🕵️ Unsichtbarer Stealth-Modus (App-Symbol ausblenden) & Inkognito-Sperre
 
-ShieldLock Pro bietet eine vollständige Unsichtbarkeits-Option, mit der die App spurlos vom Startbildschirm/Launcher verschwindet, ohne deinstalliert zu werden:
+Applock bietet eine vollständige Unsichtbarkeits-Option, mit der die App spurlos vom Startbildschirm/Launcher verschwindet, ohne deinstalliert zu werden:
 
 ### 1. App-Symbol vom Startbildschirm entfernen (Stealth Mode)
 * **Funktionsweise:** Schaltet die Launcher-Komponente (`LauncherAlias`) über den Android `PackageManager` ab.
-* **Ergebnis:** Das Icon von ShieldLock Pro verschwindet vollständig vom Startbildschirm und aus dem App-Drawer. Für Außenstehende existiert auf dem Gerät keine AppLock-App.
+* **Ergebnis:** Das Icon von Applock verschwindet vollständig vom Startbildschirm und aus dem App-Drawer. Für Außenstehende existiert auf dem Gerät keine AppLock-App.
 * **Schutzfunktion:** Der Barrierefreiheitsdienst, der Hintergrund-Wächter und der Deinstallationsschutz bleiben **vollständig aktiv und schützen weiterhin alle konfigurierten Apps**.
-* **Wie öffnet man ShieldLock Pro wieder?**
-  1. **Über die Dateien-App:** Beim Aktivieren wird automatisch eine Datei namens `ShieldLock_Oeffnen.html` im Ordner **Downloads** erstellt. Ein Antippen in der Dateien-App öffnet ShieldLock Pro per Deep-Link (`shieldlock://open`).
-  2. **Über die Android-Einstellungen:** Gehe zu **Einstellungen ➔ Apps ➔ Apps ➔ ShieldLock Pro** und tippe auf die Schaltfläche **„Öffnen“** oder **„Zusätzliche Einstellungen in der App“**.
+* **Wie öffnet man Applock wieder?**
+  1. **Über die Dateien-App:** Beim Aktivieren wird automatisch eine Datei namens `Applock_Oeffnen.html` im Ordner **Downloads** erstellt. Ein Antippen in der Dateien-App öffnet Applock per Deep-Link (`applock://open`).
+  2. **Über die Android-Einstellungen:** Gehe zu **Einstellungen ➔ Apps ➔ Apps ➔ Applock** und tippe auf die Schaltfläche **„Öffnen“** oder **„Zusätzliche Einstellungen in der App“**.
   3. **Über das Telefon-Tastenfeld:** Öffne die normale Telefon-App und wähle den geheimen Code:  
-     `*#*#744353#*#*` (*744353 = SHIELD*).
-  4. **Wieder einblenden:** In ShieldLock Pro einfach den Schalter für den Stealth-Modus deaktivieren, und das Icon erscheint sofort wieder auf dem Startbildschirm.
+     `*#*#744353#*#*` (*744353 = APPLOCK*).
+  4. **Wieder einblenden:** In Applock einfach den Schalter für den Stealth-Modus deaktivieren, und das Icon erscheint sofort wieder auf dem Startbildschirm.
 
 ### 2. Inkognito-Sperrmaske
 * **Funktionsweise:** Schalter *„🔒 Inkognito-Sperrmaske“* in den Einstellungen aktivieren.
@@ -127,9 +127,9 @@ ShieldLock Pro bietet eine vollständige Unsichtbarkeits-Option, mit der die App
 
 ## 🛡️ Umgehungs-Methoden & Sicherheitsmatrix (Anti-Bypass)
 
-| Angriffsvektor | Typische Umgehung | Implementierter Schutz in ShieldLock Pro |
+| Angriffsvektor | Typische Umgehung | Implementierter Schutz in Applock |
 | :--- | :--- | :--- |
-| **App-Deinstallation** | App-Icon auf den Papierkorb / „Deinstallieren“ ziehen | **Geräte-Administrator (`ShieldLockDeviceAdminReceiver`):** Die Android-Systemfunktion zur Deinstallation wird komplett gesperrt. |
+| **App-Deinstallation** | App-Icon auf den Papierkorb / „Deinstallieren“ ziehen | **Geräte-Administrator (`AppLockDeviceAdminReceiver`):** Die Android-Systemfunktion zur Deinstallation wird komplett gesperrt. |
 | **Erzwungenes Beenden (Force Stop)** | In den Android-App-Infos auf „Stoppen erzwingen“ tippen | **System-Sperre:** `com.android.settings`, Paket-Installer und Honor SystemManager sind standardmäßig in der Sperrliste verankert. |
 | **Speicherdaten löschen** | Löschen von Cache und App-Daten in den Einstellungen | Durch die Sperrung der Android-Einstellungen und Installer unzugänglich. |
 | **Split-Screen & Floating-Window** | Geschützte App in geteiltem Bildschirm oder Mini-Fenster öffnen | **`android:resizeableActivity="false"` + `TYPE_WINDOWS_CHANGED`-Scan:** Erzwingt Vollbild und erkennt auch schwebende Mini-Fenster. |
@@ -147,7 +147,7 @@ ShieldLock Pro bietet eine vollständige Unsichtbarkeits-Option, mit der die App
 ### 1. Eingeschränkte Einstellungen aufheben (Sideload-Schutz)
 Da die APK manuell installiert wird, blockiert Android standardmäßig den Barrierefreiheitsdienst:
 * **Option A (In den Einstellungen):**
-  1. `Einstellungen` ➔ `Apps` ➔ `Apps` ➔ `ShieldLock Pro` auswählen.
+  1. `Einstellungen` ➔ `Apps` ➔ `Apps` ➔ `Applock` auswählen.
   2. Oben rechts auf die **drei Punkte (⋮)** tippen.
   3. **„Eingeschränkte Einstellungen zulassen“** wählen und per Fingerabdruck/PIN bestätigen.
 * **Option B (Schnellbefehl per ADB):**
@@ -156,20 +156,20 @@ Da die APK manuell installiert wird, blockiert Android standardmäßig den Barri
   ```
 
 ### 2. MagicOS App-Start (Auto-Launch) konfigurieren
-1. In ShieldLock Pro auf **„MagicOS App-Start öffnen“** tippen (oder `Einstellungen` ➔ `Akku` ➔ `App-Start`).
-2. ShieldLock Pro in der Liste suchen und den Schalter **„Automatisch verwalten“ ausschalten**.
+1. In Applock auf **„MagicOS App-Start öffnen“** tippen (oder `Einstellungen` ➔ `Akku` ➔ `App-Start`).
+2. Applock in der Liste suchen und den Schalter **„Automatisch verwalten“ ausschalten**.
 3. Im Dialog alle 3 Optionen aktivieren:
    - ✅ **Auto-Start**
    - ✅ **Sekundärer Start**
    - ✅ **Im Hintergrund ausführen**
 
 ### 3. Deinstallationsschutz (Geräte-Admin) aktivieren
-1. In ShieldLock Pro unter *Sicherheits- & Systemrechte* beim Punkt **„Deinstallationsschutz (Geräte-Admin)“** auf **Erteilen** tippen.
+1. In Applock unter *Sicherheits- & Systemrechte* beim Punkt **„Deinstallationsschutz (Geräte-Admin)“** auf **Erteilen** tippen.
 2. Den Systemdialog von Android bestätigen.
 
 ### 4. Schloss im Task-Manager einrasten
 1. Die Recent-Apps-Übersicht öffnen (vom unteren Bildschirmrand nach oben wischen und halten).
-2. Die Vorschaukarte von **ShieldLock Pro** kurz nach unten ziehen, bis ein **Schloss-Symbol** einrastet. Dadurch wird die App vor dem Schließen über den Papierkorb-Button geschützt.
+2. Die Vorschaukarte von **Applock** kurz nach unten ziehen, bis ein **Schloss-Symbol** einrastet. Dadurch wird die App vor dem Schließen über den Papierkorb-Button geschützt.
 
 ---
 
@@ -178,10 +178,10 @@ Da die APK manuell installiert wird, blockiert Android standardmäßig den Barri
 ### Installation per ADB (USB-Kabel)
 ```powershell
 # Release-Version installieren (Empfohlen)
-& "C:\Users\Yunes\AppData\Local\Android\Sdk\platform-tools\adb.exe" install -r "c:\Users\Yunes\Documents\antigravity\mysterious-bardeen\ShieldLockPro-release.apk"
+& "C:\Users\Yunes\AppData\Local\Android\Sdk\platform-tools\adb.exe" install -r "c:\Users\Yunes\Documents\antigravity\kind-pascal\Applock-release.apk"
 
 # Debug-Version installieren
-& "C:\Users\Yunes\AppData\Local\Android\Sdk\platform-tools\adb.exe" install -r "c:\Users\Yunes\Documents\antigravity\mysterious-bardeen\ShieldLockPro-debug.apk"
+& "C:\Users\Yunes\AppData\Local\Android\Sdk\platform-tools\adb.exe" install -r "c:\Users\Yunes\Documents\antigravity\kind-pascal\Applock-debug.apk"
 ```
 
 ### Projekt selbst kompilieren

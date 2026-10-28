@@ -1,10 +1,10 @@
 <resources>
-    <style name="Theme.HonorAppLock" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.Applock" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">#0F172A</item>
         <item name="android:navigationBarColor">#0F172A</item>
     </style>
 
-    <style name="Theme.HonorAppLock.Transparent" parent="android:Theme.Translucent.NoTitleBar">
+    <style name="Theme.Applock.Transparent" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>

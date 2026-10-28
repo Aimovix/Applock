@@ -9,7 +9,7 @@ import android.widget.Toast
  * Geräte-Administrator-Empfänger zum Schutz vor unbefugter Deinstallation.
  * Solange aktiv, sperrt Android das Entfernen der App über den Launcher oder die Einstellungen.
  */
-class ShieldLockDeviceAdminReceiver : DeviceAdminReceiver() {
+class AppLockDeviceAdminReceiver : DeviceAdminReceiver() {
 
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
@@ -17,7 +17,7 @@ class ShieldLockDeviceAdminReceiver : DeviceAdminReceiver() {
     }
 
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
-        return "Achtung: Durch Deaktivieren des Schutzes kann ShieldLock Pro von Fremden beendet oder deinstalliert werden."
+        return "Achtung: Durch Deaktivieren des Schutzes kann Applock von Fremden beendet oder deinstalliert werden."
     }
 
     override fun onDisabled(context: Context, intent: Intent) {

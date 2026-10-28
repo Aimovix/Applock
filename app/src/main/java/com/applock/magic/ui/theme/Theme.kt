@@ -26,7 +26,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun HonorAppLockTheme(content: @Composable () -> Unit) {
+fun ApplockTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DarkColorScheme,
         content = content

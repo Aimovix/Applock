@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 class AppLockForegroundService : Service() {
 
     companion object {
-        private const val CHANNEL_ID = "shield_lock_guard_channel"
+        private const val CHANNEL_ID = "app_lock_guard_channel"
         private const val NOTIFICATION_ID = 1001
 
         fun start(context: Context) {

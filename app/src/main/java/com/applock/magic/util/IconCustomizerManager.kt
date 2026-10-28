@@ -26,7 +26,7 @@ data class PresetIcon(
 
 object IconCustomizerManager {
 
-    private const val PREFS_NAME = "shield_lock_custom_icons"
+    private const val PREFS_NAME = "app_lock_custom_icons"
     private const val ICONS_DIR = "custom_app_icons"
 
     private fun getIconsDir(context: Context): File {
@@ -115,7 +115,7 @@ object IconCustomizerManager {
             launchIntent.addCategory(Intent.CATEGORY_LAUNCHER)
             launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
 
-            val shortcutId = "shield_icon_${targetPackage}_${System.currentTimeMillis()}"
+            val shortcutId = "app_lock_icon_${targetPackage}_${System.currentTimeMillis()}"
 
             val pinShortcutInfo = ShortcutInfo.Builder(context, shortcutId)
                 .setIcon(Icon.createWithBitmap(icon))
